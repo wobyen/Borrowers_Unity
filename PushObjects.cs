@@ -2,71 +2,123 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Physics = RotaryHeart.Lib.PhysicsExtension.Physics;
+using RotaryHeart.Lib.PhysicsExtension;
 
 public class PushObjects : MonoBehaviour
 {
 
-    [SerializeField] private float forceMag;
+    private float forceMag;
+
+    Animator animator;
+
+    public bool pushing;
 
     InputAction useAction;
 
     PlayerControls playerControls;
+    PlayerMovement playerMovement;
+    CharacterController controller;
 
+    PlayerManager playerManager;
     Vector3 forceDirection;
+    public Vector3 objectOrientation;
+    InputAction moveAction;
 
-    Rigidbody pushableRB;
+    public Vector2 moveInput;
 
-    public bool canPush;
+    public float pushSpeed = 1;
+
+    [SerializeField] PreviewCondition previewConditionPush;
+
+    [SerializeField] GameObject forwardRaycaster;
+
+
+
 
     private void OnEnable()
     {
         useAction = playerControls.Player.Use;
         useAction.Enable();
 
-        useAction.canceled += context => canPush = false;
+
+
+        moveAction = playerControls.Player.Move;
+        moveAction.Enable();
+
     }
 
     private void OnDisable()
     {
         useAction.Disable();
 
+        moveAction.Disable();
+
     }
     private void Awake()
     {
         playerControls = new PlayerControls();
-    }
 
-    private void OnControllerColliderHit(ControllerColliderHit hit)
-    {
+        playerManager = GetComponent<PlayerManager>();
 
-        pushableRB = hit.collider.attachedRigidbody;
+        playerMovement = GetComponent<PlayerMovement>();
 
-        if (pushableRB != null && useAction.IsPressed())
-        {
-            canPush = true;
+        controller = GetComponent<CharacterController>();
 
-            Debug.Log("Trying to push");
-            forceDirection = hit.gameObject.transform.position - transform.position;
-
-        }
+        animator = GetComponent<Animator>();
 
     }
 
 
-    public void PushingObject()
+
+    private void Update()
+    {
+        //Physics.Raycast(forwardRaycaster.transform.position, transform.forward, out RaycastHit objectHit, Mathf.Infinity, previewConditionPush, 2f, Color.blue, Color.blue);
+        //raycast tests
+
+    }
+
+
+
+    public void PushingObject(Rigidbody pushableRB)
 
     {
-        if (canPush)
+        animator.Play("Push");
+
+        Debug.Log("Trying to push");
+        Physics.Raycast(forwardRaycaster.transform.position, transform.forward, out RaycastHit objectHit, 1f, previewConditionPush, 2f, Color.green, Color.red);
+
+        Debug.Log($"This is the normal: {objectHit.normal}");
+
+        objectOrientation = objectHit.normal;
+
+
+        moveInput = moveAction.ReadValue<Vector2>();  //input from player move 
+
+        controller.Move(-objectOrientation * moveInput.sqrMagnitude * Time.deltaTime);  // the input moves the player
+
+        pushableRB.gameObject.transform.Translate(objectOrientation * Time.deltaTime);  //box moves with player
+
+
+
+        if (useAction.triggered)  //end the push
         {
+            animator.Play("Walking");
 
-
-
-            forceDirection.y = 0;
-            forceDirection.Normalize();
-
-            pushableRB.AddForceAtPosition(forceMag * forceDirection, transform.position, ForceMode.Impulse);
-
+            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
         }
+
+
+
+        //IF NEED TO SWITCH TO PHYSICS ENGINE//
+        //------------
+        //forceDirection = pushableRB.transform.position - transform.position;
+        //forceDirection.y = 0;
+        // forceDirection.Normalize();
+        // forceMag = 100;
+
+        //pushableRB.AddForceAtPosition(forceMag * -objectOrientation, transform.position, ForceMode.Impulse);
+
 
 
     }

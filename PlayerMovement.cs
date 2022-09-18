@@ -55,7 +55,7 @@ public class PlayerMovement : MonoBehaviour
 
     public Vector3 lastDirection;
 
-    float slowRate = 10;
+    float slowRate = 50;
 
     float playerAcceleration = 0;
 
@@ -107,7 +107,6 @@ public class PlayerMovement : MonoBehaviour
 
         sprintAction.Disable();
 
-
         crouchAction.Disable();
     }
 
@@ -120,9 +119,7 @@ public class PlayerMovement : MonoBehaviour
 
         playerAcceleration = Mathf.Clamp(playerAcceleration, 0f, 8f);
 
-
     }
-
 
     //----------------//  //------------//
     //----------------//  //------------//
@@ -130,14 +127,20 @@ public class PlayerMovement : MonoBehaviour
 
 
     // Update is called once per frame
-    public void FixedUpdate()
+
+    public void defaultMovement()
     {
+        // Debug.Log($"World Rotation is {transform.rotation}");
+        // Debug.Log($"Local Rotation is {transform.localRotation}");
+
+        // Debug.Log($"Local Euler Angles is {transform.localEulerAngles}");
+        // Debug.Log($" Euler Angles is {transform.eulerAngles}");
 
         groundingCheck();   //check if the player is grounded -- bool
 
-        if (groundedPlayer)
+        if (groundedPlayer)  //if player is groudned
         {
-            animator.SetBool("isGrounded", true);
+            animator.SetBool("isGrounded", true);  //animations when player is on the ground
             animator.SetBool("isFalling", false);
             animator.SetBool("isJumping", false);
 
@@ -145,13 +148,13 @@ public class PlayerMovement : MonoBehaviour
 
             moveDirection = new Vector3(moveInput.x, 0, moveInput.y);  // converting player move to a Vector3
 
-            playerSpeed = Mathf.Lerp(walkMinSpeed, walkMaxSpeed, moveInput.SqrMagnitude());
+            playerSpeed = Mathf.Lerp(walkMinSpeed, walkMaxSpeed, moveInput.SqrMagnitude());  //lerp from min speed to max, the input magnitude = T;
 
             animator.SetFloat("velocityX", moveDirection.x * playerSpeed);  //animations based on player speed
             animator.SetFloat("velocityZ", moveDirection.z * playerSpeed);
 
 
-            if (moveInput == Vector2.zero)
+            if (moveInput == Vector2.zero)   //if player is not moving
             {
                 lastDirection.y = 0;
                 controller.Move(lastDirection * storedVelocity * Time.deltaTime);
@@ -175,6 +178,7 @@ public class PlayerMovement : MonoBehaviour
             }
 
             //adjusts moveDirection normals to reorient the player for the camera correctly
+
             moveDirection = moveDirection.x * Camera.main.transform.right.normalized + moveDirection.z * Camera.main.transform.forward.normalized;
 
             if (moveDirection != Vector3.zero)   //storing momentum data
@@ -183,7 +187,7 @@ public class PlayerMovement : MonoBehaviour
                 storedVelocity = playerSpeed;
             }
 
-            jumpingMechanics();  // if CanJump = true, how does the jump work?
+            jumpingMechanics();  // while grounded, if CanJump = true, how does the jump work?
 
         }
         else //not grounded //fallling
@@ -225,6 +229,7 @@ public class PlayerMovement : MonoBehaviour
 
         }
     }
+
 
     void jumpingMechanics()  //how the jump works
     {

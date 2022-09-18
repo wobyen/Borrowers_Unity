@@ -9,22 +9,18 @@ public class PlayerManager : MonoBehaviour
 
 
     [SerializeField] PlayerMovement playerMovement;
-    [SerializeField] ClimbDetector climbDetector;
+    //[SerializeField] ClimbDetector climbDetector;
+    Animator animator;
+    InputAction useAction;
+    InputAction moveAction;
 
+    PlayerControls playerControls;
     PushObjects pushObjects;
     //HangingMechanics hangingMechanics;
 
+    CharacterController controller;
 
-    private void Awake()
-    {
-        playerMovement = GetComponent<PlayerMovement>();
-
-        pushObjects = GetComponent<PushObjects>();
-        //climbDetector = GetComponent<ClimbDetector>();
-        // hangingMechanics = GetComponent<HangingMechanics>();
-    }
-
-
+    Rigidbody pushableRB;
 
 
     [SerializeField]
@@ -42,6 +38,36 @@ public class PlayerManager : MonoBehaviour
 
 
     }
+    private void Awake()
+    {
+        animator = GetComponent<Animator>();
+
+        pushObjects = GetComponent<PushObjects>();
+        //climbDetector = GetComponent<ClimbDetector>();
+        // hangingMechanics = GetComponent<HangingMechanics>();
+
+        playerControls = new PlayerControls();
+
+    }
+
+
+
+
+    private void OnEnable()
+    {
+
+        useAction = playerControls.Player.Use;
+        useAction.Enable();
+
+    }
+
+    private void OnDisable()
+    {
+        useAction.Disable();
+    }
+
+
+
 
     public PlayerState state;
 
@@ -59,16 +85,16 @@ public class PlayerManager : MonoBehaviour
             //basic movement when player is on the ground, no special abilities
             case PlayerState.BasicMovement:
 
+                playerMovement.defaultMovement();
+
                 break;
 
             case PlayerState.PullNPush:
 
-                pushObjects.PushingObject();
+                pushObjects.PushingObject(pushableRB);
 
                 break;
         }
-
-
     }
 
 
@@ -77,15 +103,33 @@ public class PlayerManager : MonoBehaviour
 
         PlayerStateChange(state);
 
-
     }
-
 
 
     public void ChangeState(PlayerState newState)
     {
         // Debug.Log("Changing Player State");
         state = newState;
+
+    }
+
+
+    private void OnControllerColliderHit(ControllerColliderHit hit)  //if pl;ayer touches something that can be pushed
+    {
+
+        pushableRB = hit.collider.attachedRigidbody;
+        animator.Play("Push Start");
+
+
+        if (pushableRB != null && useAction.triggered)
+        {
+
+            ChangeState(PlayerState.PullNPush);
+            Debug.Log("Can push");
+
+        }
+
+
 
     }
 
