@@ -31,7 +31,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("BOOLS")]
     //---------------- // BOOLS //------------//
     public bool groundedPlayer;
-    public bool canJump = false;
+    public bool isJumping = false;
 
 
     //---------------- // MOVEMENT //------------//
@@ -59,11 +59,14 @@ public class PlayerMovement : MonoBehaviour
 
     float playerAcceleration = 0;
 
+    public Vector3 jumpHeight;
+
     //---------------- // JUMP //------------//
     [Header("JUMP")]
 
     [SerializeField] AnimationCurve jumpAnimCurve;
     public float gravity = -9.8f;
+
 
 
     //---------------- //  //------------//
@@ -130,16 +133,13 @@ public class PlayerMovement : MonoBehaviour
 
     public void defaultMovement()
     {
-        // Debug.Log($"World Rotation is {transform.rotation}");
-        // Debug.Log($"Local Rotation is {transform.localRotation}");
-
-        // Debug.Log($"Local Euler Angles is {transform.localEulerAngles}");
-        // Debug.Log($" Euler Angles is {transform.eulerAngles}");
 
         groundingCheck();   //check if the player is grounded -- bool
 
+
         if (groundedPlayer)  //if player is groudned
         {
+
             animator.SetBool("isGrounded", true);  //animations when player is on the ground
             animator.SetBool("isFalling", false);
             animator.SetBool("isJumping", false);
@@ -153,55 +153,35 @@ public class PlayerMovement : MonoBehaviour
             animator.SetFloat("velocityX", moveDirection.x * playerSpeed);  //animations based on player speed
             animator.SetFloat("velocityZ", moveDirection.z * playerSpeed);
 
-
-            if (moveInput == Vector2.zero)   //if player is not moving
-            {
-                lastDirection.y = 0;
-                controller.Move(lastDirection * storedVelocity * Time.deltaTime);
-
-                playerSpeed = storedVelocity;
-
-                storedVelocity -= slowRate * Time.deltaTime;
-
-                animator.Play("Walking");
-                animator.speed = playerSpeed;
-
-                if (storedVelocity < 0)
-                {
-                    storedVelocity = 0;
-                }
-
-            }
-            else
-            {
-                animator.speed = 1;
-            }
+            // PlayerVelocity();
 
             //adjusts moveDirection normals to reorient the player for the camera correctly
-
             moveDirection = moveDirection.x * Camera.main.transform.right.normalized + moveDirection.z * Camera.main.transform.forward.normalized;
 
-            if (moveDirection != Vector3.zero)   //storing momentum data
-            {
-                lastDirection = moveDirection;
-                storedVelocity = playerSpeed;
-            }
-
-            jumpingMechanics();  // while grounded, if CanJump = true, how does the jump work?
+            jumpHeight.y = 0;
+            moveDirection.y = 0;
 
         }
         else //not grounded //fallling
         {
+
+            Debug.Log("Applying gravity!");
+
+            gravity = -9.8f;
+            jumpHeight.y = 1f;
+
             animator.SetBool("isFalling", true);
-            moveDirection.y += gravity * Time.deltaTime;  //if player is not grounded, they are falling.
+            animator.SetBool("isGrounded", false);  //animations when player is on the ground
+
+            controller.Move(jumpHeight * gravity * Time.deltaTime);
+
+            //if player is not grounded, they are falling.
         }
 
 
-        jumpHandler();  //when true, facilitates jump logic with timers
-
+        JumpHandler();  // while grounded, if isJumping = true, how does the jump work?
 
         controller.Move(moveDirection * playerSpeed * Time.deltaTime);  // the input moves the player
-
 
         //rotate the player with camera
         Quaternion targetRotation = Quaternion.Euler(0, Camera.main.transform.eulerAngles.y, 0);   // find the camera's Y rotation
@@ -215,45 +195,41 @@ public class PlayerMovement : MonoBehaviour
     //------
 
 
-    void jumpHandler()
+    void JumpHandler()  //how the jump works
     {
-        if (canJump)
+
+        if (jumpAction.triggered && groundedPlayer && !isJumping)  //if jump is pressed and jump is over
+        {
+            animator.SetBool("isJumping", true);
+
+            jumpTime = 0;    //reset jump timer
+            //moveDirection.y = jumpAnimCurve.Evaluate(0);  //animation curve sets jump force
+            isJumping = true;  //starts jumpHandler
+        }
+
+        else
+        {
+            jumpHeight.y = 1;
+        }
+
+        if (isJumping)
         {
             jumpTime += Time.deltaTime;  //jump timer start
-            moveDirection.y = jumpAnimCurve.Evaluate(jumpTime);  //jump height based on curve
 
-            if (jumpTime > 0.5F)  //time for jump to complete
+            gravity = -1f;
+            jumpHeight = new Vector3(0, jumpAnimCurve.Evaluate(jumpTime), 0);
+
+            transform.Translate(jumpHeight, Space.Self);  //ACTUAL JUMP
+
+            if (jumpTime > .5f)  //time for jump to complete
             {
-                canJump = false;
+                isJumping = false;
             }
 
         }
     }
 
 
-    void jumpingMechanics()  //how the jump works
-    {
-        if (!canJump)
-            moveDirection.y = 0;  //player y axis is constrained
-
-        if (jumpAction.triggered && !canJump)  //if jump is pressed and jump is over
-        {
-            animator.SetBool("isJumping", true);
-
-            jumpTime = 0;    //reset jump timer
-
-            if (playerSpeed == 0f)
-                playerSpeed = 2;
-
-            moveDirection.y = jumpAnimCurve.Evaluate(0);  //animation curve sets jump force
-            canJump = true;  //starts jumpHandler
-        }
-        else //grounded but not jumping
-        {
-            if (!canJump)
-                moveDirection.y = 0;  //if payer is grounded and not jumping, y is constrained
-        }
-    }
 
 
     void groundingCheck()
@@ -271,6 +247,41 @@ public class PlayerMovement : MonoBehaviour
 
         }
     }
+
+
+    void PlayerVelocity()
+    {
+        if (moveDirection != Vector3.zero)   //storing momentum data
+        {
+            lastDirection = moveDirection;
+            storedVelocity = playerSpeed;
+        }
+
+        if (moveInput == Vector2.zero)   //if player stops moving 
+        {
+            lastDirection.y = 0;
+            controller.Move(lastDirection * storedVelocity * Time.deltaTime);
+
+            playerSpeed = storedVelocity;  // put last spoeed value in stored velocity
+
+            storedVelocity -= slowRate * Time.deltaTime;  //slowly remove velocity
+
+            animator.Play("Walking");
+            animator.speed = storedVelocity;
+
+            if (storedVelocity < 0)
+            {
+                storedVelocity = 0;
+            }
+
+        }
+        else
+        {
+            animator.speed = 1;
+        }
+    }
+
+
 }
 
 

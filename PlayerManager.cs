@@ -18,6 +18,8 @@ public class PlayerManager : MonoBehaviour
     PushObjects pushObjects;
     //HangingMechanics hangingMechanics;
 
+    ClimbingHandler climbingHandler;
+
     CharacterController controller;
 
     Rigidbody pushableRB;
@@ -43,8 +45,8 @@ public class PlayerManager : MonoBehaviour
         animator = GetComponent<Animator>();
 
         pushObjects = GetComponent<PushObjects>();
-        //climbDetector = GetComponent<ClimbDetector>();
-        // hangingMechanics = GetComponent<HangingMechanics>();
+
+        climbingHandler = GetComponent<ClimbingHandler>();
 
         playerControls = new PlayerControls();
 
@@ -85,13 +87,16 @@ public class PlayerManager : MonoBehaviour
             //basic movement when player is on the ground, no special abilities
             case PlayerState.BasicMovement:
 
-                playerMovement.defaultMovement();
+                playerMovement.defaultMovement(); //walking and jumping
+                pushObjects.PushingObject();  //detects if player can push
+                climbingHandler.ClimbingMechanics();
+
 
                 break;
 
             case PlayerState.PullNPush:
 
-                pushObjects.PushingObject(pushableRB);
+                pushObjects.PushingObject(); //pushing object functions
 
                 break;
         }
@@ -114,23 +119,6 @@ public class PlayerManager : MonoBehaviour
     }
 
 
-    private void OnControllerColliderHit(ControllerColliderHit hit)  //if pl;ayer touches something that can be pushed
-    {
 
-        pushableRB = hit.collider.attachedRigidbody;
-        animator.Play("Push Start");
-
-
-        if (pushableRB != null && useAction.triggered)
-        {
-
-            ChangeState(PlayerState.PullNPush);
-            Debug.Log("Can push");
-
-        }
-
-
-
-    }
 
 }
