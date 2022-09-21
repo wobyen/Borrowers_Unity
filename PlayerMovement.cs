@@ -65,7 +65,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("JUMP")]
 
     [SerializeField] AnimationCurve jumpAnimCurve;
-    public float gravity = -9.8f;
+    public float gravity = -8f;
 
 
 
@@ -139,6 +139,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (groundedPlayer)  //if player is groudned
         {
+            //gravity = -1f;
 
             animator.SetBool("isGrounded", true);  //animations when player is on the ground
             animator.SetBool("isFalling", false);
@@ -167,7 +168,7 @@ public class PlayerMovement : MonoBehaviour
 
             Debug.Log("Applying gravity!");
 
-            gravity = -9.8f;
+            // gravity = -9.8f;
             jumpHeight.y = 1f;
 
             animator.SetBool("isFalling", true);
@@ -178,15 +179,19 @@ public class PlayerMovement : MonoBehaviour
             //if player is not grounded, they are falling.
         }
 
+        //gravity = -1f;
 
         JumpHandler();  // while grounded, if isJumping = true, how does the jump work?
 
         controller.Move(moveDirection * playerSpeed * Time.deltaTime);  // the input moves the player
 
         //rotate the player with camera
+
         Quaternion targetRotation = Quaternion.Euler(0, Camera.main.transform.eulerAngles.y, 0);   // find the camera's Y rotation
+
         transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime); // animate the rotation with LERP
-                                                                                                                  //controller.Move(moveDirection * playerSpeed * Time.deltaTime);
+
+        //controller.Move(moveDirection * playerSpeed * Time.deltaTime);
     }
 
 
@@ -216,7 +221,7 @@ public class PlayerMovement : MonoBehaviour
         {
             jumpTime += Time.deltaTime;  //jump timer start
 
-            gravity = -1f;
+            //gravity = -1f;
             jumpHeight = new Vector3(0, jumpAnimCurve.Evaluate(jumpTime), 0);
 
             transform.Translate(jumpHeight, Space.Self);  //ACTUAL JUMP

@@ -99,6 +99,13 @@ public class PlayerManager : MonoBehaviour
                 pushObjects.PushingObject(); //pushing object functions
 
                 break;
+
+
+            case PlayerState.Climbing:
+
+                climbingHandler.ClimbingMechanics();
+
+                break;
         }
     }
 
