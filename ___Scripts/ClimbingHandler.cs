@@ -26,7 +26,9 @@ public class ClimbingHandler : MonoBehaviour
 
 
     [Header("Vectors")]
+    public Vector3 landingZone;
 
+    public float landingzoneHeightAdjust;
 
     public Vector3 ledgePosition;
     public Vector3 ledgeTransportPlayer;
@@ -73,8 +75,6 @@ public class ClimbingHandler : MonoBehaviour
     public TextMeshProUGUI jumpText;
 
     public Vector3 lastValidHangPoint;
-
-    Vector3 landingZone;
 
 
     private void OnEnable()
@@ -124,7 +124,9 @@ public class ClimbingHandler : MonoBehaviour
         {
 
             ledgePosition = ledgeHit.point;
-            canClimb = true;
+
+            if (ledgeHit.point.y > transform.position.y)  //if the collision is higher, than the player can climb up
+                canClimb = true;
 
             //RAYCAST to find the normal of the object we are about to climb
             if (jumpAction.triggered && !hangingMovementEnabled && Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit objectHit, raycastLength, climbLayer, previewClimb, 1f, Color.blue, Color.red))
@@ -190,10 +192,8 @@ public class ClimbingHandler : MonoBehaviour
             hangMovement = new Vector3(hangMoveInput.x, 0, 0);
 
             lastValidHangPoint = transform.position;
-            landingZone = ledgeHit.point;
 
-            // Vector3 hangMoveMin = objectGO.GetComponent<Renderer>().bounds.min;
-            // Vector3 hangMoveMax = objectGO.GetComponent<Renderer>().bounds.max;
+            landingZone = ledgeHit.point;
 
             // if (transform.position.x > hangMoveMin.x && transform.position.x < hangMoveMax.x)
             controller.Move(hangMovement.x * transform.right * Time.deltaTime);
@@ -216,10 +216,9 @@ public class ClimbingHandler : MonoBehaviour
             // transform.position = Vector3.Lerp(transform.position, landingZone, lerpRatio * Time.deltaTime);
             StartCoroutine(ClimbUpAnimation(landingZone));
 
-            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
 
-            StopCoroutine(ClimbUpAnimation(landingZone));
-            hangingMovementEnabled = false;
+            // StopCoroutine(ClimbUpAnimation(landingZone));
+
 
         }
 
@@ -229,16 +228,24 @@ public class ClimbingHandler : MonoBehaviour
     IEnumerator ClimbUpAnimation(Vector3 landingZone)
     {
 
+        hangingMovementEnabled = false;
+
+        //transform.position = lastValidHangPoint;
         animator.SetBool("isClimbing", true);
-
-        yield return new WaitForSeconds(1.14f);
-
-        transform.position = landingZone;
-
         animator.SetBool("isHanging", false);
+
+        yield return new WaitForSeconds(1.53f);
+
+        landingzoneHeightAdjust = landingZone.y - .9f;
+        transform.position = new Vector3(landingZone.x, landingzoneHeightAdjust, landingZone.z);
+
+        yield return null;
+
         animator.SetBool("isClimbing", false);
 
         yield return null;
+
+        playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
 
     }
 
