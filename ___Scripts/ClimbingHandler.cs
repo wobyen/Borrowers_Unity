@@ -66,6 +66,9 @@ public class ClimbingHandler : MonoBehaviour
 
     public Rigidbody objectRB;
 
+    GameObject objectGO;
+
+    public Vector3 lastValidHangPoint;
 
 
     private void OnEnable()
@@ -123,6 +126,8 @@ public class ClimbingHandler : MonoBehaviour
                     //get the difference in height between the player and the downward collision
                 }
 
+                objectGO = objectHit.transform.gameObject;
+
                 //position of ledge with player adjsutments for hieghta nd width
                 ledgeTransportPlayer = new Vector3(ledgePosition.x, ledgePosition.y - playerHeight, ledgePosition.z - playerWidth);
 
@@ -130,6 +135,8 @@ public class ClimbingHandler : MonoBehaviour
                 animator.SetBool("isHanging", true);
 
                 ledgeClimb = true;
+
+
             }
 
         }
@@ -161,13 +168,28 @@ public class ClimbingHandler : MonoBehaviour
 
             hangMovement = new Vector3(hangMoveInput.x, 0, 0);
 
-            controller.Move(hangMovement.x * transform.right * Time.deltaTime);
+            lastValidHangPoint = transform.position;
 
+
+            // Vector3 hangMoveMin = objectGO.GetComponent<Renderer>().bounds.min;
+            // Vector3 hangMoveMax = objectGO.GetComponent<Renderer>().bounds.max;
+
+            // if (transform.position.x > hangMoveMin.x && transform.position.x < hangMoveMax.x)
+            controller.Move(hangMovement.x * transform.right * Time.deltaTime);
         }
+        else if (hangingMovementEnabled && !ledgeClimb)
+        {
+            transform.position = lastValidHangPoint;
+        }
+
 
 
 
 
     }
 
+
+
+
 }
+
