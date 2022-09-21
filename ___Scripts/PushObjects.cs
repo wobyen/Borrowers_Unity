@@ -77,14 +77,6 @@ public class PushObjects : MonoBehaviour
 
 
 
-    private void Update()
-    {
-        //Physics.Raycast(forwardRaycaster.transform.position, transform.forward, out RaycastHit objectHit, Mathf.Infinity, previewConditionPush, 2f, Color.blue, Color.blue);
-        //raycast tests
-
-    }
-
-
 
     public void PushingObject()
 
@@ -104,6 +96,8 @@ public class PushObjects : MonoBehaviour
             {
                 Debug.LogError("No Rigid Body.");
             }
+
+
 
 
             if (pushHolding && playerMovement.groundedPlayer)

@@ -19,6 +19,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] GameObject raycaster;
     [SerializeField] PreviewCondition previewConditionGround;
 
+    ClimbingHandler climbingHandler;
+
 
     //---------------- // INPUT //------------//
     InputAction moveAction;
@@ -80,6 +82,8 @@ public class PlayerMovement : MonoBehaviour
         playerControls = new PlayerControls();
 
         controller = GetComponent<CharacterController>();
+
+        climbingHandler = GetComponent<ClimbingHandler>();
 
         playerSpeed = 5;
 
@@ -203,7 +207,7 @@ public class PlayerMovement : MonoBehaviour
     void JumpHandler()  //how the jump works
     {
 
-        if (jumpAction.triggered && groundedPlayer && !isJumping)  //if jump is pressed and jump is over
+        if (jumpAction.triggered && groundedPlayer && !isJumping && !climbingHandler.canClimb)  //if jump is pressed and jump is over
         {
             animator.SetBool("isJumping", true);
 

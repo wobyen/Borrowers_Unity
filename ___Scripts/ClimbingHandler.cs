@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Interactions;
 using Physics = RotaryHeart.Lib.PhysicsExtension.Physics;
 using RotaryHeart.Lib.PhysicsExtension;
+using TMPro;
 
 
 
@@ -16,6 +17,8 @@ public class ClimbingHandler : MonoBehaviour
     Animator animator;
     PlayerManager playerManager;
     InputAction moveAction;
+    InputAction jumpAction;
+    InputAction crouchAction;
     PlayerControls playerControls;
     CharacterController controller;
 
@@ -39,7 +42,7 @@ public class ClimbingHandler : MonoBehaviour
 
 
     [Header("Bools")]
-
+    public bool canClimb = false;
     public bool ledgeClimb;
 
     public bool hangingMovementEnabled;
@@ -67,8 +70,11 @@ public class ClimbingHandler : MonoBehaviour
     public Rigidbody objectRB;
 
     GameObject objectGO;
+    public TextMeshProUGUI jumpText;
 
     public Vector3 lastValidHangPoint;
+
+    Vector3 landingZone;
 
 
     private void OnEnable()
@@ -76,11 +82,20 @@ public class ClimbingHandler : MonoBehaviour
         moveAction = playerControls.Player.Move;
 
         moveAction.Enable();
+
+        jumpAction = playerControls.Player.Jump;
+        jumpAction.Enable();
+
+        crouchAction = playerControls.Player.Crouch;
+        crouchAction.Enable();
     }
 
     private void OnDisable()
     {
         moveAction.Disable();
+        jumpAction.Disable();
+        crouchAction.Disable();
+
     }
 
     private void Awake()
@@ -103,16 +118,16 @@ public class ClimbingHandler : MonoBehaviour
 
     public void ClimbingMechanics()
     {
-        //playerForward = transform.forward;
 
+        //DETECT A JUMPING OBJECT
         if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, Mathf.Infinity, ledgelayer, previewClimb, 1f, Color.green, Color.red) && !ledgeClimb)
         {
 
             ledgePosition = ledgeHit.point;
-
+            canClimb = true;
 
             //RAYCAST to find the normal of the object we are about to climb
-            if (!hangingMovementEnabled && Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit objectHit, raycastLength, climbLayer, previewClimb, 1f, Color.blue, Color.red))
+            if (jumpAction.triggered && !hangingMovementEnabled && Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit objectHit, raycastLength, climbLayer, previewClimb, 1f, Color.blue, Color.red))
             {
 
                 climbableOrientation = objectHit.normal;  //direction the object faces 
@@ -138,6 +153,12 @@ public class ClimbingHandler : MonoBehaviour
 
 
             }
+
+        }
+
+        else
+        {
+            canClimb = false;
 
         }
 
@@ -169,7 +190,7 @@ public class ClimbingHandler : MonoBehaviour
             hangMovement = new Vector3(hangMoveInput.x, 0, 0);
 
             lastValidHangPoint = transform.position;
-
+            landingZone = ledgeHit.point;
 
             // Vector3 hangMoveMin = objectGO.GetComponent<Renderer>().bounds.min;
             // Vector3 hangMoveMax = objectGO.GetComponent<Renderer>().bounds.max;
@@ -182,14 +203,44 @@ public class ClimbingHandler : MonoBehaviour
             transform.position = lastValidHangPoint;
         }
 
+        if (hangingMovementEnabled && crouchAction.triggered)
+        {
+            hangingMovementEnabled = false;
+            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
+            animator.SetBool("isHanging", false);
 
+        }
+        if (hangingMovementEnabled && jumpAction.triggered)
+        {
 
+            // transform.position = Vector3.Lerp(transform.position, landingZone, lerpRatio * Time.deltaTime);
+            StartCoroutine(ClimbUpAnimation(landingZone));
 
+            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
+
+            StopCoroutine(ClimbUpAnimation(landingZone));
+            hangingMovementEnabled = false;
+
+        }
 
     }
 
 
+    IEnumerator ClimbUpAnimation(Vector3 landingZone)
+    {
 
+        animator.SetBool("isClimbing", true);
+
+        yield return new WaitForSeconds(1.14f);
+
+        transform.position = landingZone;
+
+        animator.SetBool("isHanging", false);
+        animator.SetBool("isClimbing", false);
+
+        yield return null;
+
+    }
 
 }
 
