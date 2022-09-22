@@ -92,12 +92,6 @@ public class PushObjects : MonoBehaviour
                 Debug.Log("RigidBody detected!");
 
             }
-            else
-            {
-                Debug.LogError("No Rigid Body.");
-            }
-
-
 
 
             if (pushHolding && playerMovement.groundedPlayer)

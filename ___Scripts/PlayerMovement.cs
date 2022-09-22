@@ -170,7 +170,7 @@ public class PlayerMovement : MonoBehaviour
         else //not grounded //fallling
         {
 
-            Debug.Log("Applying gravity!");
+            //  Debug.Log("Applying gravity!");
 
             // gravity = -9.8f;
             jumpHeight.y = 1f;

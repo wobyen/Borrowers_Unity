@@ -6,12 +6,16 @@ using UnityEngine.InputSystem.Interactions;
 using Physics = RotaryHeart.Lib.PhysicsExtension.Physics;
 using RotaryHeart.Lib.PhysicsExtension;
 using TMPro;
-
+using DG.Tweening;
 
 
 
 public class ClimbingHandler : MonoBehaviour
 {
+
+    public float climbUpHeightAdjust;
+    public float hangFromLedgeHeightAdjust;
+
 
     [Header("References")]
     Animator animator;
@@ -29,6 +33,8 @@ public class ClimbingHandler : MonoBehaviour
     public Vector3 landingZone;
 
     public float landingzoneHeightAdjust;
+
+    public Vector3 lastValidHangPoint;
 
     public Vector3 ledgePosition;
     public Vector3 ledgeTransportPlayer;
@@ -52,7 +58,7 @@ public class ClimbingHandler : MonoBehaviour
     [Header("Floats")]
 
     public float lerpRatio = .1f;
-    public float playerHeight = 2.5f;
+    public float playerHeight = 1.8f;
     public float playerWidth = .5f;
 
     public float raycastLength;
@@ -74,7 +80,7 @@ public class ClimbingHandler : MonoBehaviour
     GameObject objectGO;
     public TextMeshProUGUI jumpText;
 
-    public Vector3 lastValidHangPoint;
+    public float distanceFromObject;
 
 
     private void OnEnable()
@@ -119,8 +125,8 @@ public class ClimbingHandler : MonoBehaviour
     public void ClimbingMechanics()
     {
 
-        //DETECT A JUMPING OBJECT
-        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, Mathf.Infinity, ledgelayer, previewClimb, 1f, Color.green, Color.red) && !ledgeClimb)
+        //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
+        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red) && !ledgeClimb)
         {
 
             ledgePosition = ledgeHit.point;
@@ -128,7 +134,11 @@ public class ClimbingHandler : MonoBehaviour
             if (ledgeHit.point.y > transform.position.y)  //if the collision is higher, than the player can climb up
                 canClimb = true;
 
+
+            animator.SetBool("isDropping", false);
             //RAYCAST to find the normal of the object we are about to climb
+
+
             if (jumpAction.triggered && !hangingMovementEnabled && Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit objectHit, raycastLength, climbLayer, previewClimb, 1f, Color.blue, Color.red))
             {
 
@@ -140,24 +150,24 @@ public class ClimbingHandler : MonoBehaviour
                     //find the object's rigid body
                     objectRB = objectHit.rigidbody;
                     objectRB.GetComponent<Rigidbody>().isKinematic = true;
-                    //get the difference in height between the player and the downward collision
                 }
 
-                objectGO = objectHit.transform.gameObject;
+                objectGO = objectHit.transform.gameObject;  //Get the GameObject in case it's needed
+                distanceFromObject = objectHit.distance;  // find the distance between player and game object
 
-                //position of ledge with player adjsutments for hieghta nd width
-                ledgeTransportPlayer = new Vector3(ledgePosition.x, ledgePosition.y - playerHeight, ledgePosition.z - playerWidth);
+
+                //the position the player will be in when they are hanging
+                ledgeTransportPlayer = new Vector3(transform.position.x, ledgePosition.y - hangFromLedgeHeightAdjust, transform.position.z);
+
 
                 playerManager.ChangeState(PlayerManager.PlayerState.Climbing);  //remove player controls
                 animator.SetBool("isHanging", true);
 
                 ledgeClimb = true;
 
-
             }
 
         }
-
         else
         {
             canClimb = false;
@@ -168,16 +178,19 @@ public class ClimbingHandler : MonoBehaviour
         {
             Debug.Log("Ledgeclimb started");
 
-            //animation change
-            transform.position = Vector3.Lerp(transform.position, ledgeTransportPlayer, lerpRatio);
-            Debug.Log($"Wow, ledge position is {ledgeTransportPlayer.y} and player is at {transform.position.y} = {ledgeTransportPlayer.y - transform.position.y}");
 
-            if (((ledgeTransportPlayer.y) - transform.position.y) < .01f)
+            //move player towards object
+            transform.position += transform.forward * distanceFromObject;
+
+            //move player into HANG POSITON
+            transform.DOMove(ledgeTransportPlayer, 1f);
+
+
+            if (((ledgeTransportPlayer.y) - transform.position.y) < .01f)  //wait until done, then move to next state
 
             {
                 ledgeClimb = false;
                 hangingMovementEnabled = true;
-
             }
         }
 
@@ -185,68 +198,55 @@ public class ClimbingHandler : MonoBehaviour
         if (hangingMovementEnabled && !ledgeClimb && Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeGroundCheck, Mathf.Infinity, ledgelayer, previewClimb, 1f, Color.green, Color.red))
         {
 
-            Debug.Log("Hanging controls Enabled");
-
             hangMoveInput = moveAction.ReadValue<Vector2>();
+            hangMovement = new Vector3(hangMoveInput.x, 0, 0);  //move inputs for moving side to side
 
-            hangMovement = new Vector3(hangMoveInput.x, 0, 0);
-
-            lastValidHangPoint = transform.position;
-
-            landingZone = ledgeHit.point;
-
-            // if (transform.position.x > hangMoveMin.x && transform.position.x < hangMoveMax.x)
+            //giving player control to move side to side
             controller.Move(hangMovement.x * transform.right * Time.deltaTime);
+
+            lastValidHangPoint = transform.position;  //last valid point saved in case character moves off edge
+
+            //the place the character will land when climbing up onto object
+            landingZone = new Vector3(ledgeGroundCheck.point.x, ledgeGroundCheck.point.y - climbUpHeightAdjust, ledgeGroundCheck.point.z);
+
+
         }
-        else if (hangingMovementEnabled && !ledgeClimb)
+        else if (hangingMovementEnabled && !ledgeClimb)  //if player tries to move off edge while hanging, push them back to last valid location
         {
             transform.position = lastValidHangPoint;
         }
 
-        if (hangingMovementEnabled && crouchAction.triggered)
+        if (hangingMovementEnabled && crouchAction.triggered) //if player presses crouch, they drop down
         {
             hangingMovementEnabled = false;
             playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
-            animator.SetBool("isHanging", false);
+            animator.SetBool("isDropping", true);
 
         }
-        if (hangingMovementEnabled && jumpAction.triggered)
+        if (hangingMovementEnabled && jumpAction.triggered)  //if the player jumps, they climb up onto ledge.
         {
-
-            // transform.position = Vector3.Lerp(transform.position, landingZone, lerpRatio * Time.deltaTime);
             StartCoroutine(ClimbUpAnimation(landingZone));
-
-
-            // StopCoroutine(ClimbUpAnimation(landingZone));
-
-
         }
 
     }
 
 
-    IEnumerator ClimbUpAnimation(Vector3 landingZone)
+    IEnumerator ClimbUpAnimation(Vector3 landingZone)  //player climbs up onto ledge
     {
 
         hangingMovementEnabled = false;
 
-        //transform.position = lastValidHangPoint;
         animator.SetBool("isClimbing", true);
-        animator.SetBool("isHanging", false);
 
-        yield return new WaitForSeconds(1.53f);
-
-        landingzoneHeightAdjust = landingZone.y - .9f;
-        transform.position = new Vector3(landingZone.x, landingzoneHeightAdjust, landingZone.z);
-
-        yield return null;
-
-        animator.SetBool("isClimbing", false);
+        transform.DOMove(landingZone, 1.3f).SetEase(Ease.InOutQuad);
 
         yield return null;
 
         playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
+        animator.SetBool("isClimbing", false);
+        animator.SetBool("isHanging", false);
 
+        StopAllCoroutines();
     }
 
 }
