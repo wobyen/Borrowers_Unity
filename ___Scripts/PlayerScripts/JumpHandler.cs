@@ -19,7 +19,7 @@ public class JumpHandler : MonoBehaviour
     PlayerControls playerControls;
     Movement playerMovement;
     GravityHandler gravityHandler;
-    ClimbingHandler climbingHandler;
+    LedgeHandler LedgeHandler;
 
     Animator animator;
 
@@ -44,7 +44,7 @@ public class JumpHandler : MonoBehaviour
         playerMovement = GetComponent<Movement>();
 
         gravityHandler = GetComponent<GravityHandler>();
-        climbingHandler = GetComponent<ClimbingHandler>();
+        LedgeHandler = GetComponent<LedgeHandler>();
         controller = GetComponent<CharacterController>();
         playerControls = new PlayerControls();
 
@@ -84,12 +84,14 @@ public class JumpHandler : MonoBehaviour
     {
         animator.SetBool("isGrounded", playerGrounded);
 
+
         //IS PLAYER GROUNDED
         if (Physics.Raycast(raycastGO.transform.position, Vector3.down, out RaycastHit hitInfo, .5f, PreviewCondition.Both, 1f, Color.green, Color.red))
         {
             playerGrounded = true;  //if the player is grounded and they press jump, they will jump.
+            animator.SetBool("isDropping", false);
 
-            if (jumpAction.IsPressed() && !climbingHandler.canClimb)
+            if (jumpAction.IsPressed() && !LedgeHandler.canClimb)
             {
                 jumping = true;
             }

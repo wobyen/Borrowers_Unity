@@ -7,11 +7,11 @@ using UnityEngine.InputSystem;
 public class ledgeVolume : MonoBehaviour
 {
 
-    ClimbingHandler climbingHandler;
+    LedgeHandler LedgeHandler;
 
     private void Start()
     {
-        climbingHandler = GetComponent<ClimbingHandler>();
+        LedgeHandler = GetComponent<LedgeHandler>();
 
     }
 
@@ -19,14 +19,14 @@ public class ledgeVolume : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            climbingHandler.hangingMovementEnabled = true;
+            LedgeHandler.hangingMovementEnabled = true;
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
 
-        climbingHandler.hangingMovementEnabled = false;
+        LedgeHandler.hangingMovementEnabled = false;
 
 
     }

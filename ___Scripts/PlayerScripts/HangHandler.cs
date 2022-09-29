@@ -10,22 +10,22 @@ using RotaryHeart.Lib.PhysicsExtension;
 
 public class HangHandler : MonoBehaviour
 {
-    public Vector3 storedMoveDir;
-
-    public Vector3 localMoveDir;
-    public float maxSpeed = 4;
 
     [Header("CACHED")]
 
-    [SerializeField] GameObject targetObject;
-    [SerializeField] GameObject raycastGO;
     CharacterController controller;
     PlayerControls playerControls;
     JumpHandler jumphandler;
     Animator animator;
+    LedgeHandler ledgeHandler;
+    PlayerManager playerManager;
+
+    ClimbSearch climbSearch;
     float hangMoveSpeed = 3;
 
-    Vector3 lastValidHangPoint;
+    public Vector3 lastValidHangPoint;
+
+    public Vector3 landingZone;
 
     //------------//--INPUTS--//------------//
 
@@ -37,9 +37,9 @@ public class HangHandler : MonoBehaviour
     //------------//----//------------//
 
     public GameObject raycastClimb;
-
     public LayerMask ledgelayer;
     public PreviewCondition previewClimb;
+    public List<Collider> ClimbPoints;
 
 
     private void Awake()
@@ -47,6 +47,12 @@ public class HangHandler : MonoBehaviour
         playerControls = new PlayerControls();
 
         controller = GetComponent<CharacterController>();
+
+        playerManager = GetComponent<PlayerManager>();
+
+        ledgeHandler = GetComponent<LedgeHandler>();
+
+        climbSearch = GetComponent<ClimbSearch>();
 
     }
 
@@ -84,36 +90,78 @@ public class HangHandler : MonoBehaviour
         playerControls = new PlayerControls();
         jumphandler = GetComponent<JumpHandler>();
         animator = GetComponent<Animator>();
+
+        ClimbPoints = new List<Collider>();
+
     }
 
-    public void HangMovement()
+
+    public void HangMovement(Collider ledgeHit)  //can player do hang movement AND WHETHER ITS ONTO SOMETHING OR STARTING CLIMB SEQUENCE
 
     {
 
         //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
-        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit hangGroundHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
         {
 
             Vector2 hangMoveInput = moveAction.ReadValue<Vector2>();
-
             Vector3 hangMovement = new Vector3(hangMoveInput.x, 0, 0);
-
-            Vector3 localHangMovement = transform.TransformDirection(hangMovement);
-
-            //giving player control to move side to side
-            controller.Move(localHangMovement.x * transform.right * hangMoveSpeed * Time.deltaTime);
 
             lastValidHangPoint = transform.position;  //last valid point saved in case character moves off edge
 
-        }
+            //giving player control to move side to side
+            controller.Move(hangMovement.x * transform.right * hangMoveSpeed * Time.deltaTime);
 
+            landingZone = hangGroundHit.point;
+        }
         else
         {
-            transform.position += lastValidHangPoint;
+            transform.position = lastValidHangPoint;
         }
 
+        if (jumpAction.IsPressed())  //player is climbing up
+        {
+            StartCoroutine(ClimbLedge(landingZone));
+        }
 
+        if (crouchAction.IsPressed())
+        {
+            //player drops from ledge
+            ledgeHandler.canClimb = false;
+            animator.SetBool("isDropping", true);
+            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
+            animator.SetBool("isHanging", false);
+            animator.SetBool("isClimbing", false);
 
+        }
 
     }
+
+
+    public IEnumerator ClimbLedge(Vector3 landingZone)  //climbing on top of obstacle at end of Climb seqwuence or block
+    {
+
+
+        animator.SetBool("isClimbing", true);
+
+        transform.DOMoveY(landingZone.y, 1.0f);  //player moves up to ledge height
+
+        yield return new WaitForSeconds(1.0f);  //waits for animation to complete
+
+        transform.DOMove(landingZone, .5f);  //player moves forward onto block
+
+        yield return null;
+
+        animator.SetBool("isHanging", false);
+        animator.SetBool("isClimbing", false);
+
+        yield return null;
+        ledgeHandler.canClimb = false;
+        playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);  //return control back to player
+
+    }
+
+
+
+
 }
