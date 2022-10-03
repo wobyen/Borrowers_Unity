@@ -99,7 +99,6 @@ public class HangHandler : MonoBehaviour
     public void HangMovement(Collider ledgeHit)  //can player do hang movement AND WHETHER ITS ONTO SOMETHING OR STARTING CLIMB SEQUENCE
 
     {
-
         //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
         if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit hangGroundHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
         {

@@ -32,6 +32,8 @@ public class PlayerManager : MonoBehaviour
 
     public Rig climbing;
 
+    ClimbableDetection climableDetection;
+
     ClimbingHandler climbingHandler;
 
     [SerializeField]
@@ -46,15 +48,11 @@ public class PlayerManager : MonoBehaviour
 
     }
 
-
-
     private void Awake()
     {
         animator = GetComponent<Animator>();
 
         pushObjects = GetComponent<PushObjects>();
-
-        LedgeHandler = GetComponent<LedgeHandler>();
 
         playerControls = new PlayerControls();
 
@@ -64,28 +62,20 @@ public class PlayerManager : MonoBehaviour
 
         jumpHandler = GetComponent<JumpHandler>();
 
-        hangHandler = GetComponent<HangHandler>();
+        climableDetection = GetComponent<ClimbableDetection>();
 
-        climbingHandler = GetComponent<ClimbingHandler>();
-
-        climbSearch = GetComponent<ClimbSearch>();
     }
-
 
     private void OnEnable()
     {
-
         useAction = playerControls.Player.Use;
         useAction.Enable();
-
     }
 
     private void OnDisable()
     {
         useAction.Disable();
     }
-
-
 
 
     public PlayerState state;
@@ -105,35 +95,25 @@ public class PlayerManager : MonoBehaviour
             case PlayerState.BasicMovement:
 
                 playerMovement.defaultMovement(); //walking and jumping
-                LedgeHandler.LedgeMechanics();
                 gravityHandler.GravityControls(-9);
                 jumpHandler.JumpMechanics();
-                climbing.weight = 0;
+                climableDetection.ClimbDetection();
 
 
                 break;
-
-
-            case PlayerState.Climbing:
-
-                LedgeHandler.LedgeMechanics();
-                gravityHandler.GravityControls(0);
-
-                break;
-
 
             case PlayerState.Hanging:
 
-                hangHandler.HangMovement(LedgeHandler.ledgeCollider);
                 gravityHandler.GravityControls(0);
                 break;
 
 
             case PlayerState.ClimbSearch:
 
-                climbSearch.NextClimbPoint();
+                climbing.weight = Mathf.Lerp(0, 1, Time.deltaTime);
+                climableDetection.NextClimbPoint();
                 gravityHandler.GravityControls(0);
-                climbing.weight = 1;
+                //  climbing.weight = 1;
                 break;
 
         }
