@@ -94,7 +94,7 @@ public class JumpHandler : MonoBehaviour
             playerGrounded = true;  //if the player is grounded and they press jump, they will jump.
             animator.SetBool("isDropping", false);
 
-            if (jumpAction.IsPressed())
+            if (jumpAction.IsPressed() && !climbableDetection.canClimb)
             {
                 jumping = true;
             }
