@@ -42,7 +42,7 @@ public class ClimbableDetection : MonoBehaviour
     JumpHandler jumpHandler;
     ClimbSearch climbSearch;
     public Rig climbing;
-    float tValue;
+    float lerpAmount;
 
     Vector3 towardsLedge;
 
@@ -102,7 +102,7 @@ public class ClimbableDetection : MonoBehaviour
     }
 
 
-    public void ClimbDetection()   //searching for climable nodes or ledges
+    public void DetectClimbNode()   //searching for climable nodes or ledges
     {
         //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
         if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
@@ -127,7 +127,8 @@ public class ClimbableDetection : MonoBehaviour
                 // else
                 // {
                 //Search for climb nodes while hanging
-                StartCoroutine(ClimbPointChosen(ledgeHit.point));  //player jumps up to grab ledge
+                StartCoroutine(ClimbingNodeSelected(ledgeHit.point));  //player jumps up to grab ledge
+
                 playerManager.ChangeState(PlayerManager.PlayerState.ClimbSearch);  //start node search state
                 // }
             }
@@ -138,7 +139,7 @@ public class ClimbableDetection : MonoBehaviour
         }
     }
 
-    public IEnumerator ClimbPointChosen(Vector3 grabPoint)  //player jumps up to grab ledge
+    public IEnumerator ClimbingNodeSelected(Vector3 grabPoint)  //player jumps up to grab ledge
     {
         //animator.SetBool("isClimbing", true);  //animate player jumping from point to point
 
@@ -158,11 +159,11 @@ public class ClimbableDetection : MonoBehaviour
 
     }
 
-    public void NextClimbPoint()  //main loop of climb Search player state
+    public void SearchForNextClimbPoint()  //main loop of climb Search player state
 
     {
-        tValue += Time.deltaTime;
-        climbing.weight = Mathf.Lerp(0, 1, tValue); //animationm rig activates
+        lerpAmount += Time.deltaTime;
+        climbing.weight = Mathf.Lerp(0, 1, lerpAmount); //animationm rig activates
 
         Vector3 climbSearchInput = moveAction.ReadValue<Vector2>();
         Vector3 climbNormInput = climbSearchInput.normalized;  //input for hang movement
@@ -199,7 +200,7 @@ public class ClimbableDetection : MonoBehaviour
                 Vector3 grabPoint = results[0].transform.position;
                 animator.SetBool("isClimbing", true);  //animate player jumping from point to point
 
-                StartCoroutine("ClimbPointChosen", grabPoint);
+                StartCoroutine("ClimbingNodeSelected", grabPoint);
             }
             else
             {
@@ -214,24 +215,26 @@ public class ClimbableDetection : MonoBehaviour
 
     public IEnumerator FinishClimb(Vector3 landingZone)  //climbing on top of obstacle at end of Climb seqwuence or block
     {
-
+        animator.SetBool("isClimbing", false);
         animator.SetBool("finishClimb", true);
 
         climbing.weight = 0;
-        tValue = 0;
+        lerpAmount = 0;
 
-        transform.DOMoveY(landingZone.y, 1.0f);  //player moves up to ledge height
+        Vector3 landingZoneAdjusted = new Vector3(landingZone.x, landingZone.y - controller.height * .5f, landingZone.z);
+
+
+        transform.DOMoveY(landingZoneAdjusted.y, 1.0f);  //player moves up to ledge height
 
         yield return new WaitForSeconds(1.0f);  //waits for animation to complete
 
-        transform.DOMove(landingZone + -towardsLedge, .5f);  //player moves forward onto block
+        transform.DOMove(landingZoneAdjusted + -towardsLedge, .5f);  //player moves forward onto block
 
         //transform.position += (towardsLedge - transform.position * 6);
 
         yield return null;
 
 
-        animator.SetBool("isClimbing", false);
         animator.SetBool("startClimb", false);
         animator.SetBool("finishClimb", false);
         //return control back to player

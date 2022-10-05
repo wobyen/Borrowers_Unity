@@ -28,6 +28,9 @@ public class PlayerManager : MonoBehaviour
     HangHandler hangHandler;
 
     ClimbSearch climbSearch;
+
+    AimHandler aimHandler;
+
     Rigidbody pushableRB;
 
     public Rig climbing;
@@ -36,17 +39,20 @@ public class PlayerManager : MonoBehaviour
 
     ClimbingHandler climbingHandler;
 
+    public GameObject aimCube;
+
     [SerializeField]
     public enum PlayerState
     {
         BasicMovement,
+        Aiming,
         Hanging,
         Climbing,
         PullNPush,
         ClimbSearch
 
-
     }
+
 
     private void Awake()
     {
@@ -63,6 +69,8 @@ public class PlayerManager : MonoBehaviour
         jumpHandler = GetComponent<JumpHandler>();
 
         climableDetection = GetComponent<ClimbableDetection>();
+
+        aimHandler = GetComponent<AimHandler>();
 
     }
 
@@ -97,10 +105,13 @@ public class PlayerManager : MonoBehaviour
                 playerMovement.defaultMovement(); //walking and jumping
                 gravityHandler.GravityControls(-9);
                 jumpHandler.JumpMechanics();
-                climableDetection.ClimbDetection();
+                climableDetection.DetectClimbNode();
+                aimHandler.Aiming();
 
 
                 break;
+
+
 
             case PlayerState.Hanging:
 
@@ -111,7 +122,7 @@ public class PlayerManager : MonoBehaviour
             case PlayerState.ClimbSearch:
 
                 climbing.weight = Mathf.Lerp(0, 1, Time.deltaTime);
-                climableDetection.NextClimbPoint();
+                climableDetection.SearchForNextClimbPoint();
                 gravityHandler.GravityControls(0);
                 //  climbing.weight = 1;
                 break;
