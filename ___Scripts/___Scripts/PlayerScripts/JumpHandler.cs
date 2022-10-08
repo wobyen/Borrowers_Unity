@@ -28,6 +28,8 @@ public class JumpHandler : MonoBehaviour
     InputAction sprintAction;
     InputAction crouchAction;
 
+    ClimbableDetection climbableDetection;
+
     public float timePassed;
 
     public float jumpForce;
@@ -49,6 +51,7 @@ public class JumpHandler : MonoBehaviour
         playerControls = new PlayerControls();
 
         animator = GetComponent<Animator>();
+        climbableDetection = GetComponent<ClimbableDetection>();
     }
 
     private void OnEnable()
@@ -91,7 +94,7 @@ public class JumpHandler : MonoBehaviour
             playerGrounded = true;  //if the player is grounded and they press jump, they will jump.
             animator.SetBool("isDropping", false);
 
-            if (jumpAction.IsPressed() && !LedgeHandler.canClimb)
+            if (jumpAction.IsPressed() && !climbableDetection.canClimb)
             {
                 jumping = true;
             }

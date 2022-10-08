@@ -24,6 +24,7 @@ public class LedgeHandler : MonoBehaviour
     CharacterController controller;
     JumpHandler jumpHandler;
 
+    ClimbSearch climbSearch;
 
 
     //-----// VECTORS  //-----//
@@ -93,8 +94,11 @@ public class LedgeHandler : MonoBehaviour
     {
         playerControls = new PlayerControls();
         controller = GetComponent<CharacterController>();
-
         jumpHandler = GetComponent<JumpHandler>();
+        playerManager = GetComponent<PlayerManager>();
+        climbSearch = GetComponent<ClimbSearch>();
+        animator = GetComponent<Animator>();
+
     }
 
 
@@ -102,53 +106,76 @@ public class LedgeHandler : MonoBehaviour
     {
         previewClimb = PreviewCondition.Both;
 
-        playerManager = GetComponent<PlayerManager>();
 
-        animator = GetComponent<Animator>();
 
     }
 
     //-----------//  //-----------//
     //-----------//  //-----------//
 
-    public void LedgeMechanics() //DETECTS IF PLAYER CAN CLIMB 
+    public void LedgeMechanics() //DETECTS IF PLAYER CAN CLIMB UP OR DOWN A LEDGE, OR TO START SEQUENCE
     {
 
         //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
         if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
         {
+            canClimb = true;
+
             ledgeLocation = ledgeHit.point;
 
             ledgeCollider = ledgeHit.collider;
 
-            canClimb = true;  //disables jump when player can climb so that they climb instead.
 
-
+            //ORIENT PLAYER
             if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit forwardHit, 2f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
-
-                climbableOrientation = -forwardHit.normal;
-
-
-
-            if (jumpAction.IsPressed() && !jumpHandler.jumping)
             {
-                distanceFromLedge = forwardHit.distance;
+                climbableOrientation = -forwardHit.normal;
+            }
 
-                Vector3 ledgePositionAdjusted = new Vector3(transform.position.x, ledgeLocation.y - controller.height * .85f, transform.position.z);
 
-                StartCoroutine("LedgeClimb", ledgePositionAdjusted);
+            //IF CLIMBNIG ONTO A SMALL OBSTACLE
+            if (ledgeHit.collider.gameObject.layer == 6) //can player move left and right and climb up?
+            {
 
-                playerManager.ChangeState(PlayerManager.PlayerState.Hanging);
+                //disables jump when player can climb so that they climb instead.
+
+
+                if (jumpAction.IsPressed() && !jumpHandler.jumping)
+                {
+                    distanceFromLedge = forwardHit.distance;
+
+                    Vector3 ledgePositionAdjusted = new Vector3(transform.position.x, ledgeLocation.y - controller.height * .85f, transform.position.z);
+
+                    StartCoroutine("LedgeClimb", ledgePositionAdjusted);
+
+                    playerManager.ChangeState(PlayerManager.PlayerState.Hanging);
+
+                }
 
             }
+
+            //IF STARTING CLIMBING SEQUENCE
+            else if (ledgeHit.collider.gameObject.layer == 7)
+            {
+                Debug.Log("This is a climb point.");
+
+                if (jumpAction.IsPressed() && !jumpHandler.jumping)
+
+                {
+                    transform.forward = climbableOrientation;
+                    Debug.Log($"LedgePoint is {ledgeHit.point}");
+
+                    StartCoroutine(climbSearch.ClimbPointChosen(ledgeHit.point));
+                    playerManager.ChangeState(PlayerManager.PlayerState.ClimbSearch);
+                }
+            }
+
+            else
+            { canClimb = false; }
+
         }
-        else
-        { canClimb = false; }
 
     }
-
-
-
 
 
     public IEnumerator LedgeClimb(Vector3 ledgePositionAdjusted)
@@ -163,17 +190,11 @@ public class LedgeHandler : MonoBehaviour
 
         transform.DOMove(ledgePositionAdjusted, .5f);
 
-        // while (ledgePositionAdjusted.y - transform.position.y > .5f)
-        // {
-        //     transform.position = Vector3.Lerp(transform.position, ledgePositionAdjusted, Time.deltaTime);
 
-        //     yield return null;
-        // }
 
 
     }
 
-
-
-
 }
+
+

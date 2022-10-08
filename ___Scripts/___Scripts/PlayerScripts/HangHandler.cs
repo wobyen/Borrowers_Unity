@@ -99,47 +99,34 @@ public class HangHandler : MonoBehaviour
     public void HangMovement(Collider ledgeHit)  //can player do hang movement AND WHETHER ITS ONTO SOMETHING OR STARTING CLIMB SEQUENCE
 
     {
-        if (ledgeHit.GetComponent<Collider>().gameObject.layer == 6) //can player move left and right and climb up?
+        //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
+        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit hangGroundHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
         {
-            //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
-            if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit hangGroundHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
-            {
 
-                Vector2 hangMoveInput = moveAction.ReadValue<Vector2>();
-                Vector3 hangMovement = new Vector3(hangMoveInput.x, 0, 0);
+            Vector2 hangMoveInput = moveAction.ReadValue<Vector2>();
+            Vector3 hangMovement = new Vector3(hangMoveInput.x, 0, 0);
 
-                lastValidHangPoint = transform.position;  //last valid point saved in case character moves off edge
+            lastValidHangPoint = transform.position;  //last valid point saved in case character moves off edge
 
-                //giving player control to move side to side
-                controller.Move(hangMovement.x * transform.right * hangMoveSpeed * Time.deltaTime);
+            //giving player control to move side to side
+            controller.Move(hangMovement.x * transform.right * hangMoveSpeed * Time.deltaTime);
 
-                landingZone = hangGroundHit.point;
-            }
-            else
-            {
-                transform.position = lastValidHangPoint;
-            }
-
-            if (jumpAction.IsPressed())  //player is climbing up
-            {
-                StartCoroutine(ClimbLedge(landingZone));
-            }
+            landingZone = hangGroundHit.point;
+        }
+        else
+        {
+            transform.position = lastValidHangPoint;
         }
 
-
-        else if (ledgeHit.GetComponent<Collider>().gameObject.layer == 7)
+        if (jumpAction.IsPressed())  //player is climbing up
         {
-            Debug.Log("This is a climb point.");
-
-            playerManager.ChangeState(PlayerManager.PlayerState.ClimbSearch);
-
+            StartCoroutine(ClimbLedge(landingZone));
         }
-
 
         if (crouchAction.IsPressed())
         {
             //player drops from ledge
-
+            ledgeHandler.canClimb = false;
             animator.SetBool("isDropping", true);
             playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
             animator.SetBool("isHanging", false);
@@ -168,7 +155,7 @@ public class HangHandler : MonoBehaviour
         animator.SetBool("isClimbing", false);
 
         yield return null;
-
+        ledgeHandler.canClimb = false;
         playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);  //return control back to player
 
     }

@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using UnityEngine.Animations.Rigging;
 using UnityEngine.InputSystem;
 
 public class PlayerManager : MonoBehaviour
@@ -28,14 +28,24 @@ public class PlayerManager : MonoBehaviour
     HangHandler hangHandler;
 
     ClimbSearch climbSearch;
+
+    AimHandler aimHandler;
+
     Rigidbody pushableRB;
 
+    public Rig climbing;
+
+    ClimbableDetection climableDetection;
+
     ClimbingHandler climbingHandler;
+
+    public GameObject aimCube;
 
     [SerializeField]
     public enum PlayerState
     {
         BasicMovement,
+        Aiming,
         Hanging,
         Climbing,
         PullNPush,
@@ -44,14 +54,11 @@ public class PlayerManager : MonoBehaviour
     }
 
 
-
     private void Awake()
     {
         animator = GetComponent<Animator>();
 
         pushObjects = GetComponent<PushObjects>();
-
-        LedgeHandler = GetComponent<LedgeHandler>();
 
         playerControls = new PlayerControls();
 
@@ -61,28 +68,22 @@ public class PlayerManager : MonoBehaviour
 
         jumpHandler = GetComponent<JumpHandler>();
 
-        hangHandler = GetComponent<HangHandler>();
+        climableDetection = GetComponent<ClimbableDetection>();
 
-        climbingHandler = GetComponent<ClimbingHandler>();
+        aimHandler = GetComponent<AimHandler>();
 
-        climbSearch = GetComponent<ClimbSearch>();
     }
-
 
     private void OnEnable()
     {
-
         useAction = playerControls.Player.Use;
         useAction.Enable();
-
     }
 
     private void OnDisable()
     {
         useAction.Disable();
     }
-
-
 
 
     public PlayerState state;
@@ -102,32 +103,28 @@ public class PlayerManager : MonoBehaviour
             case PlayerState.BasicMovement:
 
                 playerMovement.defaultMovement(); //walking and jumping
-                LedgeHandler.LedgeMechanics();
                 gravityHandler.GravityControls(-9);
                 jumpHandler.JumpMechanics();
+                climableDetection.DetectClimbNode();
+                aimHandler.Aiming();
+
 
                 break;
 
-
-            case PlayerState.Climbing:
-
-                LedgeHandler.LedgeMechanics();
-                gravityHandler.GravityControls(0);
-
-                break;
 
 
             case PlayerState.Hanging:
 
-                hangHandler.HangMovement(LedgeHandler.ledgeCollider);
                 gravityHandler.GravityControls(0);
                 break;
 
 
             case PlayerState.ClimbSearch:
 
-                climbSearch.NextClimbPoint();
+                climbing.weight = Mathf.Lerp(0, 1, Time.deltaTime);
+                climableDetection.SearchForNextClimbPoint();
                 gravityHandler.GravityControls(0);
+                //  climbing.weight = 1;
                 break;
 
         }
