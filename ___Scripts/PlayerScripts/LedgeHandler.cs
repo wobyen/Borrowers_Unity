@@ -166,7 +166,7 @@ public class LedgeHandler : MonoBehaviour
                     Debug.Log($"LedgePoint is {ledgeHit.point}");
 
                     StartCoroutine(climbSearch.ClimbPointChosen(ledgeHit.point));
-                    playerManager.ChangeState(PlayerManager.PlayerState.ClimbSearch);
+                    playerManager.ChangeState(PlayerManager.PlayerState.FreeClimb);
                 }
             }
 

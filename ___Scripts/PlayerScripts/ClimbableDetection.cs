@@ -8,27 +8,46 @@ using RotaryHeart.Lib.PhysicsExtension;
 using TMPro;
 using DG.Tweening;
 using UnityEngine.Animations.Rigging;
+using System;
 
 public class ClimbableDetection : MonoBehaviour
 {
+    public Vector3 climbDirection;
+
+    public float cornerDirectionAmount = 3f;
+
+    public float cornerFowardAmount = 5f;
+
+    public bool corneringLeft = false;
+    public bool corneringRight = false;
+
+    public bool climbingUp = false;
+
 
     //-----// RAYCASTS //-----//
+    [SerializeField] float climbRayLength;
+    public float climbSpeed = 1f;
 
-    [SerializeField] GameObject raycastClimb;
+    public Vector3 surfaceNormal;
+    public Vector3 previousNormal;
+
+    public Vector3 grabPoint;
     [SerializeField] GameObject raycastForward;
+    [SerializeField] GameObject raycastAbove;
+    [SerializeField] GameObject raycastAboveAhead;
+    [SerializeField] GameObject raycastAheadLeft;
+    [SerializeField] GameObject raycastAheadRight;
 
-    [SerializeField] GameObject raycastHangMove;
-    [SerializeField] GameObject raycastLedge;
+
 
     [SerializeField] LayerMask ledgelayer;
-    [SerializeField] LayerMask climbSearchLayer;
+
+    [SerializeField] LayerMask everythingLayer;
+    [SerializeField] LayerMask nothingLayer;
 
     [SerializeField] PreviewCondition previewClimb;
 
-    [SerializeField] GameObject orbitSphere;
 
-    [SerializeField] float searchSphereRange;
-    [SerializeField] float searchSphereSize;
 
     //-----// COMPONENTS //-----//
 
@@ -40,29 +59,19 @@ public class ClimbableDetection : MonoBehaviour
     PlayerControls playerControls;
     CharacterController controller;
     JumpHandler jumpHandler;
-    ClimbSearch climbSearch;
+
     public Rig climbing;
-    float lerpAmount;
-
-    Vector3 towardsLedge;
-
-    bool climbSearchInProcess;
 
     public bool canClimb = false;
 
-    //-----// BOOLS //------//
-
-
-    public bool climbNodeSequence;
-
-    //-----// ARRAY //------//
-
-    public Collider[] results;
 
     Vector3 lastValidHangPoint;
 
-    [SerializeField] float climbSpeed;
-    [SerializeField] float inverseHangInput;
+    BoxCollider climbCollider;
+
+    float playerHeight;
+    float playerRadius;
+
 
     private void OnEnable()
     {
@@ -98,157 +107,235 @@ public class ClimbableDetection : MonoBehaviour
         animator = GetComponent<Animator>();
 
 
-        climbing.weight = 0;
+        climbCollider = GetComponent<BoxCollider>();
+
+
+        //   climbing.weight = 0;
+
+        controller.enableOverlapRecovery = true;
+        controller.detectCollisions = true;
+
+        playerHeight = controller.height;
+        playerRadius = controller.radius;
+
     }
 
 
-    public void DetectClimbNode()   //searching for climable nodes or ledges
+
+    public void StartClimb()   //searching for climable nodes or ledges
     {
-        //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
-        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit ledgeHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+
+        if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit ledgeHit, climbRayLength, ledgelayer, previewClimb, 1f, Color.green, Color.red))
         {
-            canClimb = true;
+            canClimb = true;   //if this RC is touching something then the player can climb and CANNOT JUMP
 
-            Vector3 ledgeLocation = ledgeHit.point;  //find the Vector3 of the climb point
 
-            if (jumpAction.IsPressed() && jumpHandler.playerGrounded)  //if jump is pressed annd player is grounded AND raycast positive
+            if (jumpAction.IsPressed())  //if jump is pressed annd player is grounded AND raycast positive
             {
-                towardsLedge = OrientPlayer();  //make sure player is perpindicular to surface
-                transform.forward = -towardsLedge;
+                ClimbBegins(ledgeHit);
 
-                animator.SetBool("startClimb", true);  //start animation of player -- IDLE to HANG
-
-
-                // if (ledgeHit.collider.CompareTag("finishClimb"))
-                // {
-                //     StartCoroutine(FinishClimb(ledgeLocation));
-                // }
-
-                // else
-                // {
-                //Search for climb nodes while hanging
-                StartCoroutine(ClimbingNodeSelected(ledgeHit.point));  //player jumps up to grab ledge
-
-                playerManager.ChangeState(PlayerManager.PlayerState.ClimbSearch);  //start node search state
-                // }
             }
         }
         else
         {
             canClimb = false;
         }
-    }
 
-    public IEnumerator ClimbingNodeSelected(Vector3 grabPoint)  //player jumps up to grab ledge
-    {
-        //animator.SetBool("isClimbing", true);  //animate player jumping from point to point
-
-        Vector3 ledgePositionAdjusted = new Vector3(grabPoint.x, grabPoint.y - controller.height * .85f, grabPoint.z); //adjust vec3 for player height
-
-        // yield return new WaitForSeconds(.13f);  //wait for animation
-        transform.DOMove(ledgePositionAdjusted, .75f).SetEase(Ease.InOutQuad);  //player actually leaps to point
-
-        if (results[0] != null && results[0].gameObject.CompareTag("finishClimb"))  //if the element is tagged as the top, skip to the end    
-
-        {
-            StartCoroutine(FinishClimb(grabPoint)); //climb on top
-        }
-
-        yield return new WaitForSeconds(.5f);
-        animator.SetBool("isClimbing", false);  //emd animation of jump
 
     }
 
-    public void SearchForNextClimbPoint()  //main loop of climb Search player state
-
+    private void ClimbBegins(RaycastHit ledgeHit)
     {
-        lerpAmount += Time.deltaTime;
-        climbing.weight = Mathf.Lerp(0, 1, lerpAmount); //animationm rig activates
+        animator.SetBool("startClimb", true);  //start animation of player
 
-        Vector3 climbSearchInput = moveAction.ReadValue<Vector2>();
-        Vector3 climbNormInput = climbSearchInput.normalized;  //input for hang movement
+        lastValidHangPoint = ledgeHit.point;  //creates the initial climb point
 
-        orbitSphere.transform.localPosition = new Vector2(climbSearchInput.x * searchSphereRange, climbSearchInput.y * searchSphereRange);  //find next ledge
+        surfaceNormal = -ledgeHit.normal;
+        previousNormal = surfaceNormal;
 
-        //the array where the climb points are stored
-        results = Physics.OverlapSphere(orbitSphere.transform.position, searchSphereSize, climbSearchLayer, PreviewCondition.Both, .05f, Color.green, Color.red);
 
-        lastValidHangPoint = transform.position;  //last valid point saved in case character moves off edge
+        playerManager.ChangeState(PlayerManager.PlayerState.FreeClimb);
 
-        //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
-        if (Physics.Raycast(raycastHangMove.transform.position, -transform.up, out RaycastHit hangGroundHit, 1f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+        PlayerClimbCollisions(true);
+    }
+
+    public void FreeClimb()
+    {
+        Vector2 climbInput = moveAction.ReadValue<Vector2>();
+        climbDirection = new Vector3(climbInput.x, climbInput.y, 0);
+
+        Vector3 climbDirLocalized = transform.InverseTransformDirection(climbDirection); //changes input to local position
+
+
+        if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit ledgeHit, 2f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+
         {
-            //lastValidHangPoint = transform.position;
-            inverseHangInput = climbSearchInput.x;
 
-            //giving player control to move side to side
-            controller.Move(climbSearchInput.x * transform.right * climbSpeed * Time.deltaTime);
-            animator.SetFloat("hangMove", climbSearchInput.x);
+            corneringLeft = false;
+            corneringRight = false;
 
-        }
-        else  //don't allow player to hang move beyond ledge edge
-        {
-            transform.position += -inverseHangInput * transform.right * climbSpeed * Time.deltaTime;
-            // transform.position = lastValidHangPoint;
-        }
+            lastValidHangPoint = transform.position;  //saving a return point for when player goes out of bounds
+
+            surfaceNormal = -ledgeHit.normal;
 
 
-        if (jumpAction.IsPressed())
-        {
-            if (results[0] != null)
+            if (surfaceNormal != previousNormal) //did the angle change?
             {
-                Vector3 grabPoint = results[0].transform.position;
-                animator.SetBool("isClimbing", true);  //animate player jumping from point to point
-
-                StartCoroutine("ClimbingNodeSelected", grabPoint);
+                StartCoroutine(ClimbRotation(ledgeHit));  //rotates player along surface normals
+                previousNormal = surfaceNormal;  //records new normal
             }
             else
             {
-                Debug.Log("No Climbpoints!");
+                transform.forward = -ledgeHit.normal;
             }
+
+            //animation info
+            float climbMag = climbDirLocalized.sqrMagnitude;
+            animator.SetFloat("climbX", climbMag);
+
+            climbDirLocalized.z = climbDirLocalized.z * -1; //makes sure player doesn't float away while climbing
+
+            controller.Move(climbDirLocalized * climbSpeed * Time.deltaTime); //player moves
+
+
+            if (ledgeHit.distance > .40f)  //iof player drifts too far away, they come back to wall
+            {
+                transform.position += surfaceNormal * 2 * Time.deltaTime;
+            }
+
+            else if (ledgeHit.distance < .35f)  //if they start to clip into wall, they go back to wall
+            {
+                transform.position -= surfaceNormal * 2 * Time.deltaTime;
+            }
+
+
+        }
+
+        else
+        {
+
+
+            if (climbDirection.x < 0 && corneringLeft == false)
+            {
+
+                corneringLeft = true;
+            }
+
+
+            else if (climbDirection.x > 0 && corneringRight == false)
+            {
+                corneringRight = true;
+
+
+            }
+
+
+            else if (climbDirection.y > 0.5f && !Physics.Raycast(raycastAbove.transform.position, transform.forward, out RaycastHit topDetect, 1f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
+            {
+                //if the player is pressing up and reaches an area where there is no more wall to climb
+
+                climbingUp = true;
+
+                if (Physics.Raycast(raycastAboveAhead.transform.position, Vector3.down, out RaycastHit ledgeDetected, 1f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
+
+                //and there is space in that empty area for the player to stand
+
+                {
+                    animator.SetBool("finishClimb", true);
+                    animator.SetBool("startClimb", false);
+
+                    transform.DOMove(ledgeDetected.point, 1f).SetEase(Ease.InOutQuad);
+
+                    StartCoroutine(ClimbCancel());
+
+                    transform.position = ledgeDetected.point;
+                }
+
+
+            }
+
+
+            else
+            {
+                if (corneringLeft == false && corneringRight == false && climbingUp == false)
+                {
+
+                    StopAllCoroutines();
+                    Debug.Log($"Attempting to relocate player to {lastValidHangPoint}");
+
+                    transform.position = lastValidHangPoint;
+                }
+
+
+            }
+
         }
 
 
+        if (corneringLeft)
+        {
+            StartCoroutine(ClimbCorner(transform.position, transform.rotation.eulerAngles, -transform.right, 90f));
+
+        }
+
+        else if (corneringRight)
+        {
+            StartCoroutine(ClimbCorner(transform.position, transform.rotation.eulerAngles, transform.right, -90f));
+        }
     }
 
-
-
-    public IEnumerator FinishClimb(Vector3 landingZone)  //climbing on top of obstacle at end of Climb seqwuence or block
+    public IEnumerator ClimbRotation(RaycastHit ledgeHit)
     {
-        animator.SetBool("isClimbing", false);
-        animator.SetBool("finishClimb", true);
 
-        climbing.weight = 0;
-        lerpAmount = 0;
+        float rotationSpeed = 2;
 
-        Vector3 landingZoneAdjusted = new Vector3(landingZone.x, landingZone.y - controller.height * .5f, landingZone.z);
+        Quaternion targetRotation = Quaternion.Euler(-ledgeHit.normal);   // find the camera's Y rotation
 
-
-        transform.DOMoveY(landingZoneAdjusted.y, 1.0f);  //player moves up to ledge height
-
-        yield return new WaitForSeconds(1.0f);  //waits for animation to complete
-
-        transform.DOMove(landingZoneAdjusted + -towardsLedge, .5f);  //player moves forward onto block
-
-        //transform.position += (towardsLedge - transform.position * 6);
-
+        transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         yield return null;
 
-
-        animator.SetBool("startClimb", false);
-        animator.SetBool("finishClimb", false);
-        //return control back to player
-        playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
-
     }
+
+
+
+    public IEnumerator ClimbCorner(Vector3 lastPosition, Vector3 lastRotation, Vector3 direction, float angle)
+    {
+
+        Debug.Log("Cornering!");
+        climbCollider.enabled = false;
+
+        transform.position = transform.position + direction * Time.deltaTime * cornerDirectionAmount;
+
+        Vector3 newPosition = transform.position;
+
+        yield return new WaitForSeconds(.25f);
+        transform.position = transform.position + transform.forward * Time.deltaTime * cornerFowardAmount;
+        yield return new WaitForSeconds(.25f);
+
+        transform.DOLocalRotate(lastRotation + new Vector3(0, angle, 0), .25f);
+
+        yield return new WaitForSeconds(.5f);
+
+        climbCollider.enabled = true;
+
+
+        yield return null;
+    }
+
+
 
 
     public IEnumerator ClimbCancel()  //input from crouch button
     {
+        canClimb = true;
+
         animator.SetBool("isDropping", true);
 
-        playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
-        climbing.weight = 0;
+        PlayerClimbCollisions(false);
+
+        animator.SetBool("startClimb", false);
+        animator.SetBool("finishClimb", false);
+        //climbing.weight = 0;
 
         //player drops from ledge
 
@@ -258,15 +345,23 @@ public class ClimbableDetection : MonoBehaviour
         animator.SetBool("finishClimb", false);
 
         yield return new WaitForSeconds(1);
+        playerManager.ChangeState(PlayerManager.PlayerState.NoInput);
 
         animator.SetBool("isClimbing", false);
         animator.SetBool("isDropping", false);
+
+        canClimb = false;  //prevent jump f
+        StopAllCoroutines();
+        playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
+
     }
+
+
 
     public Vector3 OrientPlayer()
     {
         //ORIENT PLAYER
-        if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit forwardHit, 2f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+        if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit forwardHit, 2f, ledgelayer))
         {
             Debug.Log(forwardHit.normal);
 
@@ -277,4 +372,28 @@ public class ClimbableDetection : MonoBehaviour
             return transform.forward;
         }
     }
+
+
+    private void PlayerClimbCollisions(bool isClimb)
+    {
+        controller.detectCollisions = !isClimb;
+        climbCollider.enabled = isClimb;
+
+        if (isClimb)
+        {
+            controller.height = 0;
+            controller.radius = 0;
+        }
+        else
+        {
+            controller.height = playerHeight;
+            controller.radius = playerRadius;
+        }
+
+
+
+
+
+    }
+
 }

@@ -12,6 +12,12 @@ public class JumpHandler : MonoBehaviour
     public bool playerGrounded;
     public bool jumping;
 
+    public bool jumpButtonPressed = false;
+
+
+    public float jumpInputTimer;
+    public float jumpInputTimerMax = 1f;
+
     public float storedMomentum;
     public float jumpTime;
     [SerializeField] GameObject raycastGO;
@@ -29,6 +35,7 @@ public class JumpHandler : MonoBehaviour
     InputAction crouchAction;
 
     ClimbableDetection climbableDetection;
+
 
     public float timePassed;
 
@@ -87,6 +94,24 @@ public class JumpHandler : MonoBehaviour
     {
         animator.SetBool("isGrounded", playerGrounded);
 
+        if (jumpAction.IsPressed() && !climbableDetection.canClimb)
+        {
+            jumpInputTimer = 0;
+
+            jumpButtonPressed = true;
+        }
+
+        if (jumpButtonPressed && jumpInputTimer < jumpInputTimerMax)
+
+        {
+            jumpInputTimer += Time.deltaTime;
+        }
+
+        else
+        {
+            jumpButtonPressed = false;
+            jumpInputTimer = 0;
+        }
 
         //IS PLAYER GROUNDED
         if (Physics.Raycast(raycastGO.transform.position, Vector3.down, out RaycastHit hitInfo, .5f, PreviewCondition.Both, 1f, Color.green, Color.red))
@@ -94,8 +119,9 @@ public class JumpHandler : MonoBehaviour
             playerGrounded = true;  //if the player is grounded and they press jump, they will jump.
             animator.SetBool("isDropping", false);
 
-            if (jumpAction.IsPressed() && !climbableDetection.canClimb)
+            if (jumpButtonPressed && !climbableDetection.canClimb)
             {
+                Debug.Log("jump");
                 jumping = true;
             }
         }
@@ -113,12 +139,7 @@ public class JumpHandler : MonoBehaviour
         {
             storedMomentum = playerMovement.accelRate;
             StartCoroutine(PlayerJump());
-
         }
-
-
-
-
     }
 
 
@@ -127,8 +148,6 @@ public class JumpHandler : MonoBehaviour
         timePassed += Time.deltaTime;
 
         jumpForce = jumpCurve.Evaluate(timePassed);  //evaluate the animation curve based on time passed through jump
-
-
 
         controller.Move(new Vector3(playerMovement.storedMoveDir.x * storedMomentum, jumpForce * Time.deltaTime, playerMovement.storedMoveDir.z * storedMomentum));
 

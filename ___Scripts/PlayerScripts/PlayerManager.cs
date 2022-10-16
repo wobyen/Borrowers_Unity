@@ -12,34 +12,18 @@ public class PlayerManager : MonoBehaviour
     //[SerializeField] ClimbDetector climbDetector;
     Animator animator;
     InputAction useAction;
-    InputAction moveAction;
 
     PlayerControls playerControls;
     PushObjects pushObjects;
     //HangingMechanics hangingMechanics;
-
-    LedgeHandler LedgeHandler;
-
-    CharacterController controller;
-
     GravityHandler gravityHandler;
     JumpHandler jumpHandler;
 
-    HangHandler hangHandler;
-
-    ClimbSearch climbSearch;
-
     AimHandler aimHandler;
-
-    Rigidbody pushableRB;
 
     public Rig climbing;
 
     ClimbableDetection climableDetection;
-
-    ClimbingHandler climbingHandler;
-
-    public GameObject aimCube;
 
     [SerializeField]
     public enum PlayerState
@@ -49,8 +33,8 @@ public class PlayerManager : MonoBehaviour
         Hanging,
         Climbing,
         PullNPush,
-        ClimbSearch
-
+        FreeClimb,
+        NoInput
     }
 
 
@@ -102,29 +86,30 @@ public class PlayerManager : MonoBehaviour
             //basic movement when player is on the ground, no special abilities
             case PlayerState.BasicMovement:
 
+
+
+
                 playerMovement.defaultMovement(); //walking and jumping
                 gravityHandler.GravityControls(-9);
                 jumpHandler.JumpMechanics();
-                climableDetection.DetectClimbNode();
+                climableDetection.StartClimb();
                 aimHandler.Aiming();
 
+                break;
+
+
+            case PlayerState.FreeClimb:
+
+                climableDetection.FreeClimb();
+                gravityHandler.GravityControls(0);
+
 
                 break;
 
 
+            case PlayerState.NoInput:
+                gravityHandler.GravityControls(-9);
 
-            case PlayerState.Hanging:
-
-                gravityHandler.GravityControls(0);
-                break;
-
-
-            case PlayerState.ClimbSearch:
-
-                climbing.weight = Mathf.Lerp(0, 1, Time.deltaTime);
-                climableDetection.SearchForNextClimbPoint();
-                gravityHandler.GravityControls(0);
-                //  climbing.weight = 1;
                 break;
 
         }
