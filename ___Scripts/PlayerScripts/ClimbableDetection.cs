@@ -209,6 +209,31 @@ public class ClimbableDetection : MonoBehaviour
             }
 
 
+            if (climbDirection.y > 0.5f && !Physics.Raycast(raycastAbove.transform.position, transform.forward, out RaycastHit topDetect, 1f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
+            {
+                //if the player is pressing up and reaches an area where there is no more wall to climb
+
+                climbingUp = true;
+
+                if (Physics.Raycast(raycastAboveAhead.transform.position, Vector3.down, out RaycastHit ledgeDetected, 1.5f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
+
+                //and there is space in that empty area for the player to stand
+
+                {
+                    animator.SetBool("finishClimb", true);
+                    animator.SetBool("startClimb", false);
+
+                    transform.DOMove(ledgeDetected.point, 1f).SetEase(Ease.InOutQuad);
+
+                    StartCoroutine(ClimbCancel());
+
+                    transform.position = ledgeDetected.point;
+                }
+
+                transform.position = lastValidHangPoint;
+
+            }
+
         }
 
         else
@@ -229,30 +254,6 @@ public class ClimbableDetection : MonoBehaviour
 
             }
 
-
-            else if (climbDirection.y > 0.5f && !Physics.Raycast(raycastAbove.transform.position, transform.forward, out RaycastHit topDetect, 1f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
-            {
-                //if the player is pressing up and reaches an area where there is no more wall to climb
-
-                climbingUp = true;
-
-                if (Physics.Raycast(raycastAboveAhead.transform.position, Vector3.down, out RaycastHit ledgeDetected, 1f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
-
-                //and there is space in that empty area for the player to stand
-
-                {
-                    animator.SetBool("finishClimb", true);
-                    animator.SetBool("startClimb", false);
-
-                    transform.DOMove(ledgeDetected.point, 1f).SetEase(Ease.InOutQuad);
-
-                    StartCoroutine(ClimbCancel());
-
-                    transform.position = ledgeDetected.point;
-                }
-
-
-            }
 
 
             else

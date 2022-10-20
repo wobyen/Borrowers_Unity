@@ -20,14 +20,16 @@ public class JumpHandler : MonoBehaviour
 
     public float storedMomentum;
     public float jumpTime;
+
     [SerializeField] GameObject raycastGO;
     CharacterController controller;
-    PlayerControls playerControls;
     Movement playerMovement;
     GravityHandler gravityHandler;
     LedgeHandler LedgeHandler;
 
     Animator animator;
+    
+    PlayerControls playerControls;
 
     InputAction moveAction;
     InputAction jumpAction;
