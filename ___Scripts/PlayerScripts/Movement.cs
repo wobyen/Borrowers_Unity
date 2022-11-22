@@ -8,7 +8,7 @@ using Physics = RotaryHeart.Lib.PhysicsExtension.Physics;
 using RotaryHeart.Lib.PhysicsExtension;
 
 
-public class Movement : MonoBehaviour
+public class Movement : InputManager
 {
     public bool controlsEnabled;
     public bool lerpTest;
@@ -17,6 +17,8 @@ public class Movement : MonoBehaviour
     public float accelForce;
     public float accelRate;
     public float decelRate = 4;
+
+    [SerializeField] float airDecelRate = 1;
 
     public Vector3 storedMoveDir;
 
@@ -27,15 +29,15 @@ public class Movement : MonoBehaviour
     [SerializeField] GameObject targetObject;
     [SerializeField] GameObject raycastGO;
     CharacterController controller;
-    PlayerControls playerControls;
+    public PlayerControls playerControls;
 
-    JumpHandler jumphandler;
+    GroundCheck groundCheck;
     Animator animator;
 
-    InputAction moveAction;
-    InputAction jumpAction;
-    InputAction sprintAction;
-    InputAction crouchAction;
+    // InputAction moveAction;
+    // InputAction sprintAction;
+
+    Vector2 moveInput;
 
     public AnimationCurve accelCurve;
 
@@ -44,52 +46,17 @@ public class Movement : MonoBehaviour
 
     private void Awake()
     {
-        playerControls = new PlayerControls();
-
         controller = GetComponent<CharacterController>();
-
-    }
-
-    private void OnEnable()
-    {
-        moveAction = playerControls.Player.Move;
-        moveAction.Enable();
-
-        jumpAction = playerControls.Player.Jump;
-        jumpAction.Enable();
-
-        sprintAction = playerControls.Player.Sprint;
-        sprintAction.Enable();
-
-        crouchAction = playerControls.Player.Crouch;
-        crouchAction.Enable();
-    }
-
-
-    private void OnDisable()
-    {
-        moveAction.Disable();
-
-        jumpAction.Disable();
-
-        sprintAction.Disable();
-
-        crouchAction.Disable();
-    }
-
-
-    void Start()
-    {
-        controller = GetComponent<CharacterController>();
-        playerControls = new PlayerControls();
-        jumphandler = GetComponent<JumpHandler>();
+        groundCheck = GetComponent<GroundCheck>();
         animator = GetComponent<Animator>();
+
     }
+
 
     public void defaultMovement()
 
     {
-        Vector2 moveInput = moveAction.ReadValue<Vector2>();
+        moveInput = moveAction.ReadValue<Vector2>();
         Vector3 moveDirection = new Vector3(moveInput.x, 0, moveInput.y);
 
         animator.SetFloat("velocityX", moveDirection.x * accelRate);
@@ -101,40 +68,46 @@ public class Movement : MonoBehaviour
 
         playerMomentum();
 
-        playerRotation();
-
-        if (jumphandler.playerGrounded)
+        if (groundCheck.isGrounded())
         {
             controller.Move(Vector3.Lerp(Vector3.zero, localMoveDir, accelRate));  //otherwise just move the player.
         }
 
-        if (raycastTest)
-        {
-            if (Physics.Raycast(raycastGO.transform.position, transform.forward, out RaycastHit hitInfo, PreviewCondition.Both, 2f, Color.green, Color.red))
-            {
-                Debug.Log(hitInfo.normal);
+        // if (raycastTest)
+        // {
+        //     if (Physics.Raycast(raycastGO.transform.position, transform.forward, out RaycastHit hitInfo, PreviewCondition.Both, 2f, Color.green, Color.red))
+        //     {
+        //         Debug.Log(hitInfo.normal);
 
-                transform.forward = -hitInfo.normal;
-            }
-        }
+        //         transform.forward = -hitInfo.normal;
+        //     }
+        // }
 
     }
 
 
     void playerMomentum()
-    { //if player is moving, accerlation force increases over time * amount of magnitude of input.  Cannot exceed max speed
-        if (localMoveDir != Vector3.zero && jumphandler.playerGrounded)
+    { //if player is moving, accerlation force increases over time * amount of magnitude of input.  
+      //Cannot exceed max speed
+
+        if (localMoveDir != Vector3.zero && groundCheck.isGrounded())
         {
             accelForce += Time.deltaTime * localMoveDir.sqrMagnitude;
             if (accelForce > maxSpeed)
                 accelForce = maxSpeed;
         }
 
-        else if (localMoveDir != Vector3.zero && !jumphandler.playerGrounded)  //if player is in the air jumping they do not gain speed
+        else if (localMoveDir != Vector3.zero && !groundCheck.isGrounded())
         {
-            if (accelForce > maxSpeed)
-                accelForce = maxSpeed;
+            accelForce -= Time.deltaTime * airDecelRate;
+
+            if (accelForce < 0)
+            {
+                accelForce = 0;
+                storedMoveDir = Vector3.zero;
+            }
         }
+
         else // otherwise, decellerate character at rate.  do not decellerate past 0.
         {
             accelForce -= Time.deltaTime * decelRate;
@@ -158,13 +131,14 @@ public class Movement : MonoBehaviour
     }
 
 
-    void playerRotation()
+    public void playerRotationCamera()
     {
         Quaternion targetRotation = Quaternion.Euler(0, Camera.main.transform.eulerAngles.y, 0);   // find the camera's Y rotation
         float rotationSpeed = 7;
         transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
 
     }
+
 
 
 }

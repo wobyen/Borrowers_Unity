@@ -11,24 +11,23 @@ public class PlayerManager : MonoBehaviour
     Movement playerMovement;
     //[SerializeField] ClimbDetector climbDetector;
     Animator animator;
-    InputAction useAction;
 
     PlayerControls playerControls;
     PushObjects pushObjects;
     //HangingMechanics hangingMechanics;
     GravityHandler gravityHandler;
     JumpHandler jumpHandler;
-
     AimHandler aimHandler;
-
-    public Rig climbing;
-
     ClimbableDetection climableDetection;
+    HangHandler hangHandler;
+
+    public bool isDisguised = false;
 
     [SerializeField]
     public enum PlayerState
     {
         BasicMovement,
+        FixedCamMovement,
         Aiming,
         Hanging,
         Climbing,
@@ -56,19 +55,9 @@ public class PlayerManager : MonoBehaviour
 
         aimHandler = GetComponent<AimHandler>();
 
-    }
+        hangHandler = GetComponent<HangHandler>();
 
-    private void OnEnable()
-    {
-        useAction = playerControls.Player.Use;
-        useAction.Enable();
     }
-
-    private void OnDisable()
-    {
-        useAction.Disable();
-    }
-
 
     public PlayerState state;
 
@@ -86,16 +75,19 @@ public class PlayerManager : MonoBehaviour
             //basic movement when player is on the ground, no special abilities
             case PlayerState.BasicMovement:
 
-
-
-
-                playerMovement.defaultMovement(); //walking and jumping
+                playerMovement.defaultMovement();
+                playerMovement.playerRotationCamera();
+                //walking and jumping
                 gravityHandler.GravityControls(-9);
                 jumpHandler.JumpMechanics();
                 climableDetection.StartClimb();
+                hangHandler.JumpToHang();
+
                 aimHandler.Aiming();
 
                 break;
+
+
 
 
             case PlayerState.FreeClimb:
@@ -109,6 +101,13 @@ public class PlayerManager : MonoBehaviour
 
             case PlayerState.NoInput:
                 gravityHandler.GravityControls(-9);
+
+                break;
+
+            case PlayerState.Hanging:
+
+                hangHandler.HangMovement();
+                gravityHandler.GravityControls(0);
 
                 break;
 

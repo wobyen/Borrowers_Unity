@@ -8,7 +8,7 @@ using Physics = RotaryHeart.Lib.PhysicsExtension.Physics;
 using RotaryHeart.Lib.PhysicsExtension;
 
 
-public class HangHandler : MonoBehaviour
+public class HangHandler : InputManager
 {
 
     [Header("CACHED")]
@@ -20,26 +20,26 @@ public class HangHandler : MonoBehaviour
     LedgeHandler ledgeHandler;
     PlayerManager playerManager;
 
-    ClimbSearch climbSearch;
     float hangMoveSpeed = 3;
 
     public Vector3 lastValidHangPoint;
 
     public Vector3 landingZone;
 
-    //------------//--INPUTS--//------------//
+    GroundCheck groundCheck;
 
-    InputAction moveAction;
-    InputAction jumpAction;
-    InputAction sprintAction;
-    InputAction crouchAction;
+    bool hanging;
+
+    [SerializeField] GameObject raycastForward;
+    [SerializeField] GameObject raycastAbove;
+    [SerializeField] GameObject raycastAboveAhead;
+
 
     //------------//----//------------//
 
     public GameObject raycastClimb;
     public LayerMask ledgelayer;
     public PreviewCondition previewClimb;
-    public List<Collider> ClimbPoints;
 
 
     private void Awake()
@@ -50,38 +50,8 @@ public class HangHandler : MonoBehaviour
 
         playerManager = GetComponent<PlayerManager>();
 
-        ledgeHandler = GetComponent<LedgeHandler>();
-
-        climbSearch = GetComponent<ClimbSearch>();
-
     }
 
-    private void OnEnable()
-    {
-        moveAction = playerControls.Player.Move;
-        moveAction.Enable();
-
-        jumpAction = playerControls.Player.Jump;
-        jumpAction.Enable();
-
-        sprintAction = playerControls.Player.Sprint;
-        sprintAction.Enable();
-
-        crouchAction = playerControls.Player.Crouch;
-        crouchAction.Enable();
-    }
-
-
-    private void OnDisable()
-    {
-        moveAction.Disable();
-
-        jumpAction.Disable();
-
-        sprintAction.Disable();
-
-        crouchAction.Disable();
-    }
 
 
     void Start()
@@ -90,17 +60,41 @@ public class HangHandler : MonoBehaviour
         playerControls = new PlayerControls();
         jumphandler = GetComponent<JumpHandler>();
         animator = GetComponent<Animator>();
-
-        ClimbPoints = new List<Collider>();
+        groundCheck = GetComponent<GroundCheck>();
 
     }
 
 
-    public void HangMovement(Collider ledgeHit)  //can player do hang movement AND WHETHER ITS ONTO SOMETHING OR STARTING CLIMB SEQUENCE
+    public void JumpToHang()
+    {
+
+        if (!groundCheck.isGrounded())
+
+        {
+            Debug.Log("is this working");
+
+            //detects if there is a ledge ahead
+            if (!hanging && Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit ledgeHit, 1f, previewClimb, 1f, Color.green, Color.red) && Physics.Raycast(raycastAboveAhead.transform.position, -transform.up, out RaycastHit climbUpPoint, .75f, previewClimb, 2f, Color.green, Color.yellow))
+            {
+
+                hanging = true;
+                animator.Play("Stand To Freehang");
+
+
+                lastValidHangPoint = new Vector3(ledgeHit.point.x, ledgeHit.point.y, ledgeHit.point.z);
+
+                // transform.DOMove(lastValidHangPoint, 1f);
+
+                playerManager.ChangeState(PlayerManager.PlayerState.Hanging);
+            }
+        }
+    }
+
+    public void HangMovement()  //can player do hang movement AND WHETHER ITS ONTO SOMETHING OR STARTING CLIMB SEQUENCE
 
     {
         //This raycast detects climable objects, grounds the player to a ledge while hanging and moving, and many other things.
-        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit hangGroundHit, 3f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+        if (Physics.Raycast(raycastClimb.transform.position, -transform.up, out RaycastHit hangGroundHit, 3f, previewClimb, 1f, Color.green, Color.red))
         {
 
             Vector2 hangMoveInput = moveAction.ReadValue<Vector2>();
@@ -112,6 +106,22 @@ public class HangHandler : MonoBehaviour
             controller.Move(hangMovement.x * transform.right * hangMoveSpeed * Time.deltaTime);
 
             landingZone = hangGroundHit.point;
+
+            if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit ledgeHit, 2f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
+
+            {
+                Vector3 surfaceNormal = -ledgeHit.normal;
+
+                if (ledgeHit.distance > .40f)  //iof player drifts too far away, they come back to wall
+                {
+                    transform.position += surfaceNormal * 2 * Time.deltaTime;
+                }
+
+                else if (ledgeHit.distance < .35f)  //if they start to clip into wall, they go back to wall
+                {
+                    transform.position -= surfaceNormal * 2 * Time.deltaTime;
+                }
+            }
         }
         else
         {
@@ -126,11 +136,12 @@ public class HangHandler : MonoBehaviour
         if (crouchAction.IsPressed())
         {
             //player drops from ledge
-            ledgeHandler.canClimb = false;
             animator.SetBool("isDropping", true);
-            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
             animator.SetBool("isHanging", false);
             animator.SetBool("isClimbing", false);
+            hanging = false;
+            playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);
+
 
         }
 
@@ -140,6 +151,8 @@ public class HangHandler : MonoBehaviour
     public IEnumerator ClimbLedge(Vector3 landingZone)  //climbing on top of obstacle at end of Climb seqwuence or block
     {
 
+
+        animator.Play("climbing up");
 
         animator.SetBool("isClimbing", true);
 
@@ -155,7 +168,8 @@ public class HangHandler : MonoBehaviour
         animator.SetBool("isClimbing", false);
 
         yield return null;
-        ledgeHandler.canClimb = false;
+        hanging = false;
+
         playerManager.ChangeState(PlayerManager.PlayerState.BasicMovement);  //return control back to player
 
     }

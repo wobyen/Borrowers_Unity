@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerInventoryHandler : MonoBehaviour
+public class PlayerInventoryHandler : InputManager
 {
     public InventoryObject inventory;
 
@@ -13,49 +13,55 @@ public class PlayerInventoryHandler : MonoBehaviour
 
     public NotificationHandler notifications;
 
-    PlayerControls playerControls;
-    InputAction useAction;
 
-    private void Awake()
-    {
-        playerControls = new PlayerControls();
+    bool nearItem = false;
 
-    }
-
-    private void OnEnable()
-    {
-        useAction = playerControls.Player.Use;
-
-        useAction.Enable();
-
-    }
-
-
-    private void OnDisable()
-    {
-        useAction.Disable();
-
-
-    }
-
-
+    Collider nearbyItem;
 
 
     public void OnTriggerEnter(Collider other)
     {
+        Debug.Log("Item near");
+        nearItem = true;
+        nearbyItem = other;
+    }
 
-        if (useAction.IsPressed())
+
+    private void OnTriggerExit(Collider other)
+    {
+        Debug.Log("No item");
+        nearItem = false;
+
+        nearbyItem = null;
+    }
+
+    private void Update()
+    {
+
+
+        if (useAction.IsPressed() && nearItem && nearbyItem != null)
         {
-            var item = other.GetComponent<ItemBehavior>();
+
+            PickUpItem(nearbyItem);
+        }
+
+    }
+
+
+    public void PickUpItem(Collider other)
+    {
+        {
+            var item = other.GetComponent<ItemBehavior>();  //get the ItemBehavior component 
             if (item)
             {
-                inventory.AddItem(item.item, 1);
-                textObject.textDisplay = $"You picked up a {item.name}";
+                Debug.Log("Item deteected -- adding to inventory");
+                inventory.AddItem(item.item, 1);   //if there's one there, add it to inventory using AddItem function
+                                                   // textObject.textDisplay = $"You picked up a {item.name}";
 
-
-                StartCoroutine(notifications.TextFadeInOut());
+                //StartCoroutine(notifications.TextFadeInOut());
 
                 Destroy(other.gameObject);
+                nearbyItem = null;
             }
         }
     }

@@ -1,102 +1,55 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.Interactions;
 using Physics = RotaryHeart.Lib.PhysicsExtension.Physics;
 using RotaryHeart.Lib.PhysicsExtension;
-using TMPro;
 using DG.Tweening;
 using UnityEngine.Animations.Rigging;
-using System;
 
-public class ClimbableDetection : MonoBehaviour
+public class ClimbableDetection : InputManager
 {
     public Vector3 climbDirection;
-
     public float cornerDirectionAmount = 3f;
-
     public float cornerFowardAmount = 5f;
-
     public bool corneringLeft = false;
     public bool corneringRight = false;
-
     public bool climbingUp = false;
 
 
     //-----// RAYCASTS //-----//
     [SerializeField] float climbRayLength;
     public float climbSpeed = 1f;
+    GroundCheck groundCheck;
 
     public Vector3 surfaceNormal;
     public Vector3 previousNormal;
 
-    public Vector3 grabPoint;
     [SerializeField] GameObject raycastForward;
     [SerializeField] GameObject raycastAbove;
     [SerializeField] GameObject raycastAboveAhead;
-    [SerializeField] GameObject raycastAheadLeft;
-    [SerializeField] GameObject raycastAheadRight;
-
 
 
     [SerializeField] LayerMask ledgelayer;
-
     [SerializeField] LayerMask everythingLayer;
     [SerializeField] LayerMask nothingLayer;
-
     [SerializeField] PreviewCondition previewClimb;
-
 
 
     //-----// COMPONENTS //-----//
 
     Animator animator;
     PlayerManager playerManager;
-    InputAction moveAction;
-    InputAction jumpAction;
-    InputAction crouchAction;
     PlayerControls playerControls;
     CharacterController controller;
     JumpHandler jumpHandler;
 
-    public Rig climbing;
-
     public bool canClimb = false;
-
-
     Vector3 lastValidHangPoint;
-
     BoxCollider climbCollider;
 
     float playerHeight;
     float playerRadius;
 
 
-    private void OnEnable()
-    {
-        moveAction = playerControls.Player.Move;
-
-        moveAction.Enable();
-
-        jumpAction = playerControls.Player.Jump;
-        jumpAction.Enable();
-
-        crouchAction = playerControls.Player.Crouch;
-
-        crouchAction.performed += ctx => StartCoroutine(ClimbCancel());
-
-
-        crouchAction.Enable();
-    }
-
-
-    private void OnDisable()
-    {
-        moveAction.Disable();
-        jumpAction.Disable();
-        crouchAction.Disable();
-    }
 
     private void Awake()
     {
@@ -106,11 +59,10 @@ public class ClimbableDetection : MonoBehaviour
         playerManager = GetComponent<PlayerManager>();
         animator = GetComponent<Animator>();
 
+        groundCheck = GetComponent<GroundCheck>();
+
 
         climbCollider = GetComponent<BoxCollider>();
-
-
-        //   climbing.weight = 0;
 
         controller.enableOverlapRecovery = true;
         controller.detectCollisions = true;
@@ -122,6 +74,10 @@ public class ClimbableDetection : MonoBehaviour
 
 
 
+
+
+
+
     public void StartClimb()   //searching for climable nodes or ledges
     {
 
@@ -129,20 +85,18 @@ public class ClimbableDetection : MonoBehaviour
         {
             canClimb = true;   //if this RC is touching something then the player can climb and CANNOT JUMP
 
-
             if (jumpAction.IsPressed())  //if jump is pressed annd player is grounded AND raycast positive
             {
                 ClimbBegins(ledgeHit);
-
             }
         }
         else
         {
             canClimb = false;
         }
-
-
     }
+
+
 
     private void ClimbBegins(RaycastHit ledgeHit)
     {
@@ -159,6 +113,8 @@ public class ClimbableDetection : MonoBehaviour
         PlayerClimbCollisions(true);
     }
 
+
+
     public void FreeClimb()
     {
         Vector2 climbInput = moveAction.ReadValue<Vector2>();
@@ -166,18 +122,15 @@ public class ClimbableDetection : MonoBehaviour
 
         Vector3 climbDirLocalized = transform.InverseTransformDirection(climbDirection); //changes input to local position
 
-
         if (Physics.Raycast(raycastForward.transform.position, transform.forward, out RaycastHit ledgeHit, 2f, ledgelayer, previewClimb, 1f, Color.green, Color.red))
 
         {
-
             corneringLeft = false;
             corneringRight = false;
 
             lastValidHangPoint = transform.position;  //saving a return point for when player goes out of bounds
 
             surfaceNormal = -ledgeHit.normal;
-
 
             if (surfaceNormal != previousNormal) //did the angle change?
             {
@@ -212,7 +165,6 @@ public class ClimbableDetection : MonoBehaviour
             if (climbDirection.y > 0.5f && !Physics.Raycast(raycastAbove.transform.position, transform.forward, out RaycastHit topDetect, 1f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
             {
                 //if the player is pressing up and reaches an area where there is no more wall to climb
-
                 climbingUp = true;
 
                 if (Physics.Raycast(raycastAboveAhead.transform.position, Vector3.down, out RaycastHit ledgeDetected, 1.5f, everythingLayer, previewClimb, 1f, Color.green, Color.red))
@@ -231,27 +183,20 @@ public class ClimbableDetection : MonoBehaviour
                 }
 
                 transform.position = lastValidHangPoint;
-
             }
-
         }
 
         else
         {
 
-
             if (climbDirection.x < 0 && corneringLeft == false)
             {
-
                 corneringLeft = true;
             }
-
 
             else if (climbDirection.x > 0 && corneringRight == false)
             {
                 corneringRight = true;
-
-
             }
 
 
@@ -266,17 +211,12 @@ public class ClimbableDetection : MonoBehaviour
 
                     transform.position = lastValidHangPoint;
                 }
-
-
             }
-
         }
-
 
         if (corneringLeft)
         {
             StartCoroutine(ClimbCorner(transform.position, transform.rotation.eulerAngles, -transform.right, 90f));
-
         }
 
         else if (corneringRight)
@@ -284,6 +224,7 @@ public class ClimbableDetection : MonoBehaviour
             StartCoroutine(ClimbCorner(transform.position, transform.rotation.eulerAngles, transform.right, -90f));
         }
     }
+
 
     public IEnumerator ClimbRotation(RaycastHit ledgeHit)
     {
@@ -342,8 +283,7 @@ public class ClimbableDetection : MonoBehaviour
 
         yield return null;
 
-        animator.SetBool("startClimb", false);
-        animator.SetBool("finishClimb", false);
+
 
         yield return new WaitForSeconds(1);
         playerManager.ChangeState(PlayerManager.PlayerState.NoInput);

@@ -17,16 +17,20 @@ public class InventoryObject : ScriptableObject
 
         bool hasItem = false;
 
+
         for (int i = 0; i < Container.Count; i++)
         {
+
             if (Container[i].item == _item)
             {
                 Container[i].AddAmount(_amount);
                 hasItem = true;
                 break;
+
             }
 
         }
+
         if (!hasItem)
         {
             Container.Add(new InventorySlot(_item, _amount));
@@ -43,6 +47,7 @@ public class InventorySlot
 {
 
     public ItemObject item;
+
     public int amount;
 
     public InventorySlot(ItemObject _item, int _amount)
